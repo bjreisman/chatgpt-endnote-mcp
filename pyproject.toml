@@ -32,11 +32,14 @@ dependencies = [
     "pyyaml>=6.0",
     "click>=8.0",
     "rich>=13.0",
+    "openai>=2.0.0",
+    "starlette>=0.40.0",
+    "uvicorn>=0.30.0",
 ]
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=2.2.0", "sqlite-vec>=0.1.0"]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "numpy>=1.26"]
 
 [project.urls]
 Homepage = "https://github.com/bjreisman/chatgpt-endnote-mcp"

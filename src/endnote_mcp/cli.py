@@ -5,6 +5,9 @@ Commands:
     endnote-mcp index    — Index your library (incremental by default)
     endnote-mcp embed    — Generate semantic search embeddings
     endnote-mcp serve    — Start the MCP server (used by Claude Desktop)
+    endnote-mcp serve-companion — Start the local HTTP companion for bridge development
+    endnote-mcp serve-gateway   — Start the MCP gateway that forwards to the companion
+    endnote-mcp serve-app       — Start the local web chat app backed by the OpenAI API
     endnote-mcp status   — Show index statistics
     endnote-mcp install  — Add MCP server to Claude Desktop config
 """
@@ -31,7 +34,7 @@ from endnote_mcp.config import Config, get_config_dir, get_default_config_path
 @click.group()
 @click.version_option()
 def cli():
-    """Connect your EndNote library to Claude via MCP.
+    """Connect your EndNote library to MCP-based tools.
 
     Get started:  endnote-mcp setup
     """
@@ -77,6 +80,10 @@ def setup():
         "pdf_dir": str(pdf_dir),
         "db_path": str(db_path),
         "max_pdf_pages": 30,
+        "companion_host": "127.0.0.1",
+        "companion_port": 8765,
+        "companion_token": None,
+        "request_timeout_seconds": 30,
     }
     with open(config_path, "w") as f:
         yaml.dump(config_data, f, default_flow_style=False, sort_keys=False)
@@ -137,6 +144,47 @@ def serve():
     """Start the MCP server (called by Claude Desktop automatically)."""
     from endnote_mcp.server import mcp as mcp_server
     mcp_server.run()
+
+
+@cli.command("serve-companion")
+@click.option("--host", default=None, help="Host interface for the local companion")
+@click.option("--port", type=int, default=None, help="Port for the local companion")
+@click.option("--config", type=click.Path(exists=True), help="Path to config.yaml")
+def serve_companion(host, port, config):
+    """Start the local HTTP companion used by the ChatGPT bridge foundation."""
+    from endnote_mcp.companion import serve_companion as run_companion
+    from endnote_mcp.tool_runtime import EndNoteToolRuntime
+
+    cfg = Config.load(config)
+    runtime = EndNoteToolRuntime(config_path=config)
+    host = host or cfg.companion_host
+    port = port or cfg.companion_port
+    click.echo(f"Starting local companion at http://{host}:{port}")
+    run_companion(host=host, port=port, runtime=runtime, token=cfg.companion_token)
+
+
+@cli.command("serve-gateway")
+def serve_gateway():
+    """Start the MCP gateway that forwards tool calls to the local companion."""
+    from endnote_mcp.gateway import mcp as mcp_server
+
+    mcp_server.run()
+
+
+@cli.command("serve-app")
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host interface for the local web app")
+@click.option("--port", type=int, default=8080, show_default=True, help="Port for the local web app")
+@click.option("--config", type=click.Path(exists=True), help="Path to config.yaml")
+def serve_app(host, port, config):
+    """Start the local EndNote chat web app."""
+    from endnote_mcp.chat_app import create_starlette_app
+    from endnote_mcp.tool_runtime import EndNoteToolRuntime
+    import uvicorn
+
+    runtime = EndNoteToolRuntime(config_path=config)
+    app = create_starlette_app(runtime=runtime)
+    click.echo(f"Starting local app at http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="warning")
 
 
 # ====================================================================

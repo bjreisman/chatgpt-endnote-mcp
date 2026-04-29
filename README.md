@@ -7,7 +7,7 @@
 
 <!-- mcp-name: io.github.bjreisman/chatgpt-endnote-mcp -->
 
-Fork of `gokmengokhan/endnote-mcp` aimed at a ChatGPT-compatible future architecture. It preserves the existing EndNote indexing, PDF extraction, search, and citation core while this repo is adapted from a local Claude Desktop MCP into a ChatGPT-oriented remote app plus local bridge.
+Fork of `gokmengokhan/endnote-mcp` and an active attempt to port the project toward ChatGPT-compatible workflows. It preserves the existing EndNote indexing, PDF extraction, search, and citation core while this repo is adapted from a local Claude Desktop MCP into a ChatGPT-oriented remote app plus local bridge.
 
 ## Current Status
 
@@ -16,6 +16,11 @@ This fork is in a transitional state:
 - The internal Python package name remains `endnote_mcp`
 - The existing CLI and local stdio MCP server are preserved for compatibility
 - The final ChatGPT target is a remote app/gateway paired with a local EndNote companion, not the inherited Claude Desktop install flow
+- The newer bridge and local app pieces are experimental porting work, not hardened production services
+
+## Security Note
+
+This repository currently includes experimental local HTTP services and a local web app as part of the ChatGPT port attempt. They are intended for trusted local development. Do not expose them to the public internet as-is via tunnels or public hosts without adding authentication, tightening metadata exposure, and reviewing the privacy implications for your EndNote library and OpenAI API usage.
 
 If you are looking for the original Claude Desktop experience, use the upstream project. This fork is the staging ground for the ChatGPT port.
 
@@ -95,6 +100,78 @@ This fork is being adapted toward:
 - A remote MCP-compatible app/gateway that ChatGPT can connect to
 - A pairing flow that avoids direct local MCP installation inside ChatGPT
 
+## Bridge Foundation
+
+This fork now includes a first-pass bridge foundation for development:
+
+- `endnote-mcp serve-companion` starts a local HTTP companion that executes EndNote tool calls against your local library
+- `endnote-mcp serve-gateway` starts an MCP gateway that forwards those same tool calls to the companion
+- `endnote-mcp serve` is still preserved as the direct local MCP baseline from upstream
+
+Typical development flow:
+
+```bash
+# Terminal 1
+endnote-mcp serve-companion
+
+# Terminal 2
+endnote-mcp serve-gateway
+```
+
+The bridge foundation uses these config keys:
+
+```yaml
+companion_host: 127.0.0.1
+companion_port: 8765
+companion_token: null
+request_timeout_seconds: 30
+```
+
+For local testing you can also override the gateway target with environment variables:
+
+```bash
+export ENDNOTE_MCP_COMPANION_URL=http://127.0.0.1:8765
+export ENDNOTE_MCP_COMPANION_TOKEN=your-token-if-set
+```
+
+This is still a development foundation. It does not yet include a deployable remote ChatGPT app or public pairing flow.
+
+## Local Chat App
+
+This fork also includes a local web app that uses the OpenAI API for the chat layer while keeping EndNote search and PDF access on your machine.
+
+Before starting it, export your API key:
+
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+```
+
+You can optionally choose a model. By default the app uses `gpt-5-mini`, which OpenAI documents as a faster, cost-efficient GPT-5 model for well-defined tasks:
+
+```bash
+export ENDNOTE_MCP_OPENAI_MODEL="gpt-5-mini"
+```
+
+Start the app:
+
+```bash
+endnote-mcp serve-app
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8080
+```
+
+The local app can:
+
+- ask natural-language questions about your EndNote library
+- search references and indexed full text
+- inspect specific reference metadata
+- read PDF sections when needed for grounded answers
+- generate citations and bibliographies during the conversation
+
 ## Semantic Search (Optional)
 
 Enable meaning-based search that finds references even when they use different terminology than your query. For example, searching *"how companies prepare for uncertain futures"* finds papers on scenario planning and strategic foresight.
@@ -123,6 +200,9 @@ This uses the lightweight [all-MiniLM-L6-v2](https://huggingface.co/sentence-tra
 | `endnote-mcp status` | Show index statistics |
 | `endnote-mcp install` | Transitional inherited command for local Claude Desktop config |
 | `endnote-mcp serve` | Transitional inherited local MCP server entrypoint |
+| `endnote-mcp serve-companion` | Start the local HTTP companion for bridge development |
+| `endnote-mcp serve-gateway` | Start the MCP gateway that forwards to the companion |
+| `endnote-mcp serve-app` | Start the local web chat app backed by the OpenAI API |
 
 ## Tools Available in the Preserved Core
 
@@ -175,6 +255,10 @@ endnote_xml: /path/to/your/library.xml
 pdf_dir: /path/to/your/Library.Data/PDF
 db_path: /path/to/library.db    # auto-set by setup
 max_pdf_pages: 30                # max pages per read request
+companion_host: 127.0.0.1
+companion_port: 8765
+companion_token: null
+request_timeout_seconds: 30
 ```
 
 ## Citation Styles
