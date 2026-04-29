@@ -1,7 +1,7 @@
 [project]
 name = "endnote-mcp"
 version = "1.4.5"
-description = "Connect your EndNote reference library to Claude AI — search, cite, and read PDFs directly in conversations"
+description = "ChatGPT-oriented fork of endnote-mcp that preserves the EndNote search and citation core while the remote app plus local bridge architecture is developed"
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"
 readme = "README.md"
@@ -39,10 +39,10 @@ semantic = ["sentence-transformers>=2.2.0", "sqlite-vec>=0.1.0"]
 dev = ["pytest>=8.0"]
 
 [project.urls]
-Homepage = "https://github.com/gokmengokhan/endnote-mcp"
-Documentation = "https://github.com/gokmengokhan/endnote-mcp#readme"
-Repository = "https://github.com/gokmengokhan/endnote-mcp"
-Issues = "https://github.com/gokmengokhan/endnote-mcp/issues"
+Homepage = "https://github.com/bjreisman/chatgpt-endnote-mcp"
+Documentation = "https://github.com/bjreisman/chatgpt-endnote-mcp#readme"
+Repository = "https://github.com/bjreisman/chatgpt-endnote-mcp"
+Issues = "https://github.com/bjreisman/chatgpt-endnote-mcp/issues"
 
 [build-system]
 requires = ["hatchling"]

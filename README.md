@@ -1,17 +1,27 @@
-# EndNote MCP
+# ChatGPT EndNote MCP
 
-[![Tests](https://github.com/gokmengokhan/endnote-mcp/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/gokmengokhan/endnote-mcp/actions/workflows/test.yml)
+[![Tests](https://github.com/bjreisman/chatgpt-endnote-mcp/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/bjreisman/chatgpt-endnote-mcp/actions/workflows/test.yml)
 [![PyPI](https://img.shields.io/pypi/v/endnote-mcp)](https://pypi.org/project/endnote-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/endnote-mcp)](https://pypi.org/project/endnote-mcp/)
-[![License](https://img.shields.io/pypi/l/endnote-mcp)](https://github.com/gokmengokhan/endnote-mcp/blob/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/endnote-mcp)](https://github.com/bjreisman/chatgpt-endnote-mcp/blob/main/LICENSE)
 
-<!-- mcp-name: io.github.gokmengokhan/endnote-mcp -->
+<!-- mcp-name: io.github.bjreisman/chatgpt-endnote-mcp -->
 
-Connect your EndNote reference library to Claude AI. Search references, read PDFs, format citations, find related papers, and generate bibliographies — all directly in Claude Desktop conversations.
+Fork of `gokmengokhan/endnote-mcp` aimed at a ChatGPT-compatible future architecture. It preserves the existing EndNote indexing, PDF extraction, search, and citation core while this repo is adapted from a local Claude Desktop MCP into a ChatGPT-oriented remote app plus local bridge.
+
+## Current Status
+
+This fork is in a transitional state:
+
+- The internal Python package name remains `endnote_mcp`
+- The existing CLI and local stdio MCP server are preserved for compatibility
+- The final ChatGPT target is a remote app/gateway paired with a local EndNote companion, not the inherited Claude Desktop install flow
+
+If you are looking for the original Claude Desktop experience, use the upstream project. This fork is the staging ground for the ChatGPT port.
 
 ## What It Does
 
-Once set up, you can ask Claude things like:
+Once the port is complete, you will be able to ask ChatGPT things like:
 
 - *"Search my library for social capital and Bourdieu"*
 - *"Find papers about how organisations deal with uncertainty"* (semantic search)
@@ -21,26 +31,31 @@ Once set up, you can ask Claude things like:
 - *"Export references 12, 45, 78 as BibTeX"*
 - *"Read pages 5-7 from that Smith et al. paper"*
 
-Claude searches your **local** library — nothing is uploaded to the cloud beyond the normal conversation.
+The long-term design keeps your EndNote library local while exposing approved search and reading actions to ChatGPT through a remote connector.
 
 ## How It Works
 
 ```
 EndNote Library → XML Export → endnote-mcp index → SQLite Database (FTS5 + Embeddings)
                                                           ↕
-                                   Claude Desktop ← MCP Server (12 tools)
+                           Local companion ↔ remote app/gateway ↔ ChatGPT
 ```
 
-Your references and PDF text are indexed into a local SQLite database with full-text search. Optionally, AI embeddings enable semantic search — finding papers by meaning, not just keywords. When semantic dependencies are installed, new references are automatically embedded during indexing. Claude connects through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
+Your references and PDF text are indexed into a local SQLite database with full-text search. Optionally, AI embeddings enable semantic search. The inherited local MCP server remains in the repo as a compatibility baseline, but it is not the final ChatGPT delivery model.
 
 ## Requirements
 
 - **EndNote 20+** (any edition)
-- **Claude Desktop** app
 - **Python 3.10+**
 - **uv** (recommended) or pip
 
+## Migration Note
+
+This repository has been renamed for the ChatGPT port, but the code still uses the original `endnote_mcp` package and `endnote-mcp` CLI internally for now. That is intentional in this first fork phase to avoid a large rename before the new bridge architecture is in place.
+
 ## Quick Start
+
+The quick start below describes the inherited local workflow that still exists in the codebase today. It is useful for development and regression testing, but it is **transitional** and **not** the final ChatGPT setup flow.
 
 ### 1. Install
 
@@ -66,13 +81,19 @@ The wizard will:
 - Auto-detect your XML export and PDF directory
 - Create the configuration
 - Index your library
-- Configure Claude Desktop automatically
+- Preserve the current local MCP baseline used during the port
 
-### 4. Restart Claude Desktop
+### 4. Transitional local MCP usage
 
-Quit and reopen Claude Desktop. You'll see "EndNote Library" in your MCP connectors.
+The current codebase still includes the inherited local MCP server and install flow from upstream. That path remains available only as a compatibility baseline while the ChatGPT remote app plus local bridge is being built.
 
-That's it. Start asking Claude about your references.
+## ChatGPT Port Direction
+
+This fork is being adapted toward:
+
+- A local companion that indexes and queries the EndNote library on your machine
+- A remote MCP-compatible app/gateway that ChatGPT can connect to
+- A pairing flow that avoids direct local MCP installation inside ChatGPT
 
 ## Semantic Search (Optional)
 
@@ -100,10 +121,10 @@ This uses the lightweight [all-MiniLM-L6-v2](https://huggingface.co/sentence-tra
 | `endnote-mcp embed` | Generate semantic search embeddings |
 | `endnote-mcp embed --full` | Regenerate all embeddings from scratch |
 | `endnote-mcp status` | Show index statistics |
-| `endnote-mcp install` | Add to Claude Desktop config |
-| `endnote-mcp serve` | Start MCP server (used by Claude Desktop automatically) |
+| `endnote-mcp install` | Transitional inherited command for local Claude Desktop config |
+| `endnote-mcp serve` | Transitional inherited local MCP server entrypoint |
 
-## Tools Available to Claude
+## Tools Available in the Preserved Core
 
 | Tool | Description |
 |------|-------------|
@@ -127,7 +148,7 @@ When you add new references to your EndNote library:
 1. **Re-export XML** from EndNote (overwrite the same file)
 2. Either:
    - Run `endnote-mcp index` from a terminal, **or**
-   - Ask Claude: *"Rebuild my library index"*
+   - Use the local tooling during the transition period
 
 Indexing is **incremental** — it only processes new references and PDFs, not the entire library again. If semantic search is installed, new references are automatically embedded.
 
@@ -187,7 +208,9 @@ Generates complete entries with proper entry types (`@article`, `@book`, `@inpro
 
 **Search returns no results** — Run `endnote-mcp index` to rebuild the database
 
-**Claude Desktop doesn't show the tool** — Run `endnote-mcp install`, then restart Claude Desktop
+**ChatGPT app support is not wired yet** — This fork is still implementing the remote app plus local bridge architecture
+
+**Claude Desktop doesn't show the tool** — The inherited local install flow is transitional in this fork; use it only if you are testing the pre-port baseline
 
 **"Semantic search is not available"** — Run `pip install endnote-mcp[semantic]` then `endnote-mcp embed`
 
@@ -196,6 +219,8 @@ Generates complete entries with proper entry types (`@article`, `@book`, `@inpro
 If you use this tool in your research, please cite it:
 
 > Gokmen, G. (2026). *EndNote MCP: Connecting EndNote Reference Libraries to Claude AI* (Version 1.4.5) [Computer software]. https://doi.org/10.5281/zenodo.18617546
+
+For the original project history and citation context, see the upstream repository at [gokmengokhan/endnote-mcp](https://github.com/gokmengokhan/endnote-mcp).
 
 Or use the "Cite this repository" button on GitHub for BibTeX/APA formats.
 

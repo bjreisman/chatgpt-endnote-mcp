@@ -1,9 +1,9 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.gokmengokhan/endnote-mcp",
-  "description": "Search, cite, and read PDFs from your EndNote library in Claude Desktop",
+  "name": "io.github.bjreisman/chatgpt-endnote-mcp",
+  "description": "Transitional metadata for the ChatGPT-oriented fork of endnote-mcp while the remote app plus local bridge architecture is developed",
   "repository": {
-    "url": "https://github.com/gokmengokhan/endnote-mcp",
+    "url": "https://github.com/bjreisman/chatgpt-endnote-mcp",
     "source": "github"
   },
   "version": "1.0.1",
