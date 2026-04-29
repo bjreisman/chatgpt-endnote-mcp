@@ -136,6 +136,74 @@ export ENDNOTE_MCP_COMPANION_TOKEN=your-token-if-set
 
 This is still a development foundation. It does not yet include a deployable remote ChatGPT app or public pairing flow.
 
+## Use from ChatGPT with a Local Tunnel
+
+If you want to try this fork from ChatGPT itself, the lowest-friction path is now a tunnel-backed local MCP server.
+
+Important limitation: ChatGPT custom MCP connectors currently need a remote-reachable URL. ChatGPT cannot connect directly to a localhost MCP server, so this mode works by running the MCP server on your machine and then exposing it temporarily through a tunnel.
+
+This mode is:
+
+- personal dev/demo oriented
+- read/fetch focused
+- not hardened for broad public deployment
+- the easiest way to try the MCP workflow in ChatGPT without building a durable hosted gateway first
+
+### Recommended flow
+
+1. Prepare your library locally:
+
+```bash
+endnote-mcp setup
+endnote-mcp index
+```
+
+2. Set a bearer token for the local ChatGPT MCP server:
+
+```bash
+export ENDNOTE_MCP_CHATGPT_LOCAL_TOKEN="choose-a-random-secret"
+```
+
+3. Start the tunnel-ready local MCP server:
+
+```bash
+endnote-mcp serve-chatgpt-local
+```
+
+By default it listens on `127.0.0.1:8787`.
+
+4. Expose it with `localtunnel`:
+
+```bash
+npx localtunnel --port 8787
+```
+
+5. Copy the HTTPS URL from `localtunnel` into ChatGPT developer mode/custom connector setup.
+
+6. Configure ChatGPT to send the bearer token you set above with requests to the connector.
+
+### Optional tunnel alternative
+
+If you want a more stable tunnel than `localtunnel`, `ngrok` is a reasonable alternative:
+
+```bash
+ngrok http 8787
+```
+
+### Notes
+
+- From ChatGPT's perspective, this is still a remote MCP connection even though the server code runs locally on your machine.
+- The tunnel makes your local MCP endpoint remotely reachable while it is running, so treat the token as required.
+- Prefer setting `ENDNOTE_MCP_CHATGPT_LOCAL_TOKEN` in your shell instead of storing `chatgpt_local_token` in `config.yaml`, because the config file is plain text on disk.
+- The ChatGPT-local MCP server intentionally exposes only read/fetch-style EndNote tools and does not expose `rebuild_index`.
+
+## Local ChatGPT Tunnel vs Local App
+
+There are now two main ways to try this fork:
+
+- `endnote-mcp serve-chatgpt-local` plus a tunnel: use the actual ChatGPT connector experience, but you need a remote-reachable tunnel URL and connector setup.
+- `endnote-mcp serve-app`: use the local web app instead of ChatGPT's connector UI; simpler to run, but it uses the OpenAI API directly rather than ChatGPT's MCP connector workflow.
+
 ## Local Chat App
 
 This fork also includes a local web app that uses the OpenAI API for the chat layer while keeping EndNote search and PDF access on your machine.
@@ -157,6 +225,8 @@ Start the app:
 ```bash
 endnote-mcp serve-app
 ```
+
+For safety, `serve-app` now refuses non-loopback binds unless you pass `--allow-public`. Even with that flag, the app still has no built-in authentication, so avoid exposing it outside your machine unless you are intentionally doing short-lived testing.
 
 Then open:
 
@@ -200,6 +270,7 @@ This uses the lightweight [all-MiniLM-L6-v2](https://huggingface.co/sentence-tra
 | `endnote-mcp status` | Show index statistics |
 | `endnote-mcp install` | Transitional inherited command for local Claude Desktop config |
 | `endnote-mcp serve` | Transitional inherited local MCP server entrypoint |
+| `endnote-mcp serve-chatgpt-local` | Start the local MCP HTTP server for ChatGPT tunnel testing |
 | `endnote-mcp serve-companion` | Start the local HTTP companion for bridge development |
 | `endnote-mcp serve-gateway` | Start the MCP gateway that forwards to the companion |
 | `endnote-mcp serve-app` | Start the local web chat app backed by the OpenAI API |
@@ -258,8 +329,18 @@ max_pdf_pages: 30                # max pages per read request
 companion_host: 127.0.0.1
 companion_port: 8765
 companion_token: null
+chatgpt_local_host: 127.0.0.1
+chatgpt_local_port: 8787
+chatgpt_local_token: null
 request_timeout_seconds: 30
 ```
+
+`companion_token` and `chatgpt_local_token` may be left `null` in config and supplied via environment variables instead:
+
+- `ENDNOTE_MCP_COMPANION_TOKEN`
+- `ENDNOTE_MCP_CHATGPT_LOCAL_TOKEN`
+
+That is the safer default if you do not want long-lived secrets written to disk in plain text.
 
 ## Citation Styles
 

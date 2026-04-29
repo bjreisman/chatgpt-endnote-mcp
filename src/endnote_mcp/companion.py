@@ -17,11 +17,10 @@ class CompanionService:
         self.token = token
 
     def health_payload(self) -> dict:
-        cfg = self.runtime._get_config()
         return {
             "ok": True,
-            "db_path": str(cfg.db_path),
-            "endnote_xml": str(cfg.endnote_xml),
+            "service": "endnote-companion",
+            "mode": "bridge-dev",
         }
 
     def invoke(self, req: ToolInvokeRequest) -> ToolInvokeResponse:
@@ -45,17 +44,18 @@ def make_handler(service: CompanionService):
             if self.path != "/health":
                 self.send_error(404)
                 return
+            if not self._is_authorized():
+                self._write_json(401, {"ok": False, "error": "unauthorized"})
+                return
             self._write_json(200, service.health_payload())
 
         def do_POST(self):
             if self.path != "/invoke":
                 self.send_error(404)
                 return
-            if service.token:
-                auth = self.headers.get("Authorization", "")
-                if auth != f"Bearer {service.token}":
-                    self._write_json(401, {"ok": False, "error": "unauthorized"})
-                    return
+            if not self._is_authorized():
+                self._write_json(401, {"ok": False, "error": "unauthorized"})
+                return
 
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
@@ -71,6 +71,12 @@ def make_handler(service: CompanionService):
 
         def log_message(self, format, *args):
             return
+
+        def _is_authorized(self) -> bool:
+            if not service.token:
+                return True
+            auth = self.headers.get("Authorization", "")
+            return auth == f"Bearer {service.token}"
 
         def _write_json(self, code: int, payload: dict):
             data = json.dumps(payload).encode("utf-8")

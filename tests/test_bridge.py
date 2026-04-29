@@ -3,6 +3,7 @@
 import json
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -102,9 +103,16 @@ def test_companion_bridge_roundtrip(tmp_path):
     result = client.invoke("search_references", {"query": "shipping"})
     assert "Harbor Logistics and Reliability" in result
 
-    with urllib.request.urlopen("http://127.0.0.1:8876/health", timeout=5) as resp:
+    health_req = urllib.request.Request(
+        "http://127.0.0.1:8876/health",
+        headers={"Authorization": "Bearer secret-token"},
+    )
+    with urllib.request.urlopen(health_req, timeout=5) as resp:
         payload = json.loads(resp.read().decode("utf-8"))
     assert payload["ok"] is True
+    assert payload["service"] == "endnote-companion"
+    assert "db_path" not in payload
+    assert "endnote_xml" not in payload
 
 
 def test_companion_rejects_missing_token(tmp_path):
@@ -131,3 +139,10 @@ def test_companion_rejects_missing_token(tmp_path):
         assert "401" in str(exc)
     else:
         raise AssertionError("Expected unauthorized bridge failure")
+
+    try:
+        urllib.request.urlopen("http://127.0.0.1:8877/health", timeout=5)
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 401
+    else:
+        raise AssertionError("Expected unauthorized health failure")

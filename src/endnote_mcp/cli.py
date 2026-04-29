@@ -5,6 +5,7 @@ Commands:
     endnote-mcp index    — Index your library (incremental by default)
     endnote-mcp embed    — Generate semantic search embeddings
     endnote-mcp serve    — Start the MCP server (used by Claude Desktop)
+    endnote-mcp serve-chatgpt-local — Start the local HTTP MCP server for ChatGPT tunnel testing
     endnote-mcp serve-companion — Start the local HTTP companion for bridge development
     endnote-mcp serve-gateway   — Start the MCP gateway that forwards to the companion
     endnote-mcp serve-app       — Start the local web chat app backed by the OpenAI API
@@ -15,6 +16,7 @@ Commands:
 from __future__ import annotations
 
 import json
+import ipaddress
 import logging
 import os
 import platform
@@ -83,6 +85,9 @@ def setup():
         "companion_host": "127.0.0.1",
         "companion_port": 8765,
         "companion_token": None,
+        "chatgpt_local_host": "127.0.0.1",
+        "chatgpt_local_port": 8787,
+        "chatgpt_local_token": None,
         "request_timeout_seconds": 30,
     }
     with open(config_path, "w") as f:
@@ -146,11 +151,42 @@ def serve():
     mcp_server.run()
 
 
+@cli.command("serve-chatgpt-local")
+@click.option("--host", default=None, help="Host interface for the local ChatGPT MCP server")
+@click.option("--port", type=int, default=None, help="Port for the local ChatGPT MCP server")
+@click.option("--config", type=click.Path(exists=True), help="Path to config.yaml")
+def serve_chatgpt_local(host, port, config):
+    """Start the local MCP HTTP server intended for ChatGPT tunnel testing."""
+    from endnote_mcp.chatgpt_local_server import create_chatgpt_local_app, resolve_chatgpt_local_settings
+    from endnote_mcp.tool_runtime import EndNoteToolRuntime
+    import uvicorn
+
+    resolved_host, resolved_port, token = resolve_chatgpt_local_settings(config)
+    host = host or resolved_host
+    port = port or resolved_port
+    runtime = EndNoteToolRuntime(config_path=config)
+    app = create_chatgpt_local_app(runtime=runtime, token=token)
+    if host != "127.0.0.1":
+        click.secho(
+            "Warning: non-loopback binding makes the local MCP server reachable beyond this machine. "
+            "Use only for advanced testing.",
+            fg="yellow",
+        )
+    click.echo("Starting tunnel-ready local MCP server for ChatGPT dev/demo use.")
+    click.echo(f"Use a tunnel to expose: http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="warning")
+
+
 @cli.command("serve-companion")
 @click.option("--host", default=None, help="Host interface for the local companion")
 @click.option("--port", type=int, default=None, help="Port for the local companion")
+@click.option(
+    "--allow-public",
+    is_flag=True,
+    help="Explicitly allow binding beyond localhost. Use only with a companion token.",
+)
 @click.option("--config", type=click.Path(exists=True), help="Path to config.yaml")
-def serve_companion(host, port, config):
+def serve_companion(host, port, allow_public, config):
     """Start the local HTTP companion used by the ChatGPT bridge foundation."""
     from endnote_mcp.companion import serve_companion as run_companion
     from endnote_mcp.tool_runtime import EndNoteToolRuntime
@@ -159,8 +195,24 @@ def serve_companion(host, port, config):
     runtime = EndNoteToolRuntime(config_path=config)
     host = host or cfg.companion_host
     port = port or cfg.companion_port
+    token = os.environ.get("ENDNOTE_MCP_COMPANION_TOKEN", cfg.companion_token)
+    if not _is_loopback_host(host):
+        if not allow_public:
+            raise click.ClickException(
+                "Refusing to bind the local companion to a non-loopback host without --allow-public."
+            )
+        if not token:
+            raise click.ClickException(
+                "Refusing to expose the local companion without a bearer token. "
+                "Set ENDNOTE_MCP_COMPANION_TOKEN or companion_token first."
+            )
+        click.secho(
+            "Warning: the local companion is being exposed beyond this machine. Keep the token secret "
+            "and shut it down when you are done.",
+            fg="yellow",
+        )
     click.echo(f"Starting local companion at http://{host}:{port}")
-    run_companion(host=host, port=port, runtime=runtime, token=cfg.companion_token)
+    run_companion(host=host, port=port, runtime=runtime, token=token)
 
 
 @cli.command("serve-gateway")
@@ -174,13 +226,28 @@ def serve_gateway():
 @cli.command("serve-app")
 @click.option("--host", default="127.0.0.1", show_default=True, help="Host interface for the local web app")
 @click.option("--port", type=int, default=8080, show_default=True, help="Port for the local web app")
+@click.option(
+    "--allow-public",
+    is_flag=True,
+    help="Explicitly allow binding beyond localhost. The local web app has no built-in auth.",
+)
 @click.option("--config", type=click.Path(exists=True), help="Path to config.yaml")
-def serve_app(host, port, config):
+def serve_app(host, port, allow_public, config):
     """Start the local EndNote chat web app."""
     from endnote_mcp.chat_app import create_starlette_app
     from endnote_mcp.tool_runtime import EndNoteToolRuntime
     import uvicorn
 
+    if not _is_loopback_host(host):
+        if not allow_public:
+            raise click.ClickException(
+                "Refusing to bind the local web app to a non-loopback host without --allow-public."
+            )
+        click.secho(
+            "Warning: the local web app has no built-in authentication. Anyone who can reach it can "
+            "query your library and spend your OpenAI API credits.",
+            fg="yellow",
+        )
     runtime = EndNoteToolRuntime(config_path=config)
     app = create_starlette_app(runtime=runtime)
     click.echo(f"Starting local app at http://{host}:{port}")
@@ -259,6 +326,16 @@ def install():
 # ====================================================================
 # Helpers
 # ====================================================================
+
+def _is_loopback_host(host: str) -> bool:
+    """Return True when a host resolves to localhost-only bindings."""
+    normalized = host.strip().lower()
+    if normalized == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
 
 def _run_embed(config_path, *, full=False):
     """Generate embeddings for references."""
