@@ -1,5 +1,6 @@
 """Integrity checks for staged local imports and attachment provenance."""
 from pathlib import Path
+from contextlib import closing
 import sqlite3
 
 import pymupdf as fitz
@@ -45,7 +46,7 @@ def test_multiple_attachments_nested_notes(cfg):
     assert refs[0]['attachments'] == ['nested/a.pdf', 'nested/b.pdf']
     assert refs[0]['research_notes'] == 'personal hypothesis'
     index_library(cfg)
-    with db.connect_readonly(cfg.db_path) as conn:
+    with closing(db.connect_readonly(cfg.db_path)) as conn:
         assert conn.execute('SELECT count(*) FROM attachments').fetchone()[0] == 2
         assert conn.execute('SELECT count(*) FROM pdf_pages').fetchone()[0] == 2
         assert conn.execute("SELECT count(*) FROM references_fts WHERE references_fts MATCH 'hypothesis'").fetchone()[0] == 1
@@ -60,9 +61,12 @@ def test_attachment_security(cfg, tmp_path):
     assert find_pdf(cfg.pdf_dir, 'same.pdf') is None
     assert find_pdf(cfg.pdf_dir, 'a/same.pdf') == (cfg.pdf_dir / 'a/same.pdf').resolve()
     pdf(tmp_path / 'outside.pdf')
-    (cfg.pdf_dir / 'link.pdf').symlink_to(tmp_path / 'outside.pdf')
     assert find_pdf(cfg.pdf_dir, '../outside.pdf') is None
     assert find_pdf(cfg.pdf_dir, '%2e%2e/outside.pdf') is None
+    try:
+        (cfg.pdf_dir / 'link.pdf').symlink_to(tmp_path / 'outside.pdf')
+    except OSError:
+        pytest.skip('Host does not permit creating symbolic links')
     assert find_pdf(cfg.pdf_dir, 'link.pdf') is None
 
 
@@ -79,7 +83,7 @@ def test_changes_invalidate_embeddings_and_missing_pages(cfg):
     stats = index_library(cfg)
     assert stats['references_with_embeddings'] == 0
     assert stats['attachments_changed'] == 1
-    with db.connect_readonly(cfg.db_path) as conn:
+    with closing(db.connect_readonly(cfg.db_path)) as conn:
         assert 'Updated' in conn.execute('SELECT text_content FROM pdf_pages').fetchone()[0]
     path.unlink()
     stats = index_library(cfg)
@@ -116,7 +120,7 @@ def test_upsert_and_explicit_deletions(cfg):
     cfg.endnote_xml.write_text('<anything/>')
     with pytest.raises(ValueError):
         index_library(cfg, sync_deletions=True)
-    with db.connect_readonly(cfg.db_path) as conn:
+    with closing(db.connect_readonly(cfg.db_path)) as conn:
         assert db.get_stats(conn)['total_references'] == 1
 
 
@@ -145,7 +149,7 @@ def test_incompatible_schema_rebuilt_only_on_success(cfg):
     assert cfg.db_path.read_bytes() == before
     export(cfg, record())
     index_library(cfg)
-    with db.connect_readonly(cfg.db_path) as conn:
+    with closing(db.connect_readonly(cfg.db_path)) as conn:
         assert db.get_stats(conn)['total_references'] == 1
 
 

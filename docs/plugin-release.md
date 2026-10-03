@@ -1,5 +1,9 @@
 # EndNote Research 1.4.6 release validation
 
+This is the historical 1.4.6 validation record. For the 1.4.7 Windows candidate,
+see [Windows validation and release gates](windows-acceptance.md). No 1.4.7 release
+has been published; do not treat historical macOS checks as Windows acceptance.
+
 This release adds local plugin metadata/icons, a setup onboarding skill, an
 explicit uv runtime installer, and a distributable plugin ZIP. Installation reads
 runtime source from the installed plugin copy. Server startup does not install

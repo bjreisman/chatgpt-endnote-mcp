@@ -1,6 +1,6 @@
 {
   "name": "endnote-research",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Index and search exported EndNote libraries locally from Codex desktop.",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",
@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "EndNote Research",
     "shortDescription": "Search exported libraries",
-    "longDescription": "Unofficial tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, and optionally use locally prepared semantic embeddings. Requires macOS, uv, and an exported library. Source files and the index stay local; retrieved evidence may be sent to the AI service used by Codex. Local operation does not guarantee privacy or security. Provided as is, without warranty; use at your own risk. This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI.",
+    "longDescription": "Unofficial tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, and optionally use locally prepared semantic embeddings. Requires uv, an exported library, and the platform package for macOS or Windows 11 x64. Source files and the index stay local; retrieved evidence may be sent to the AI service used by Codex. Local operation does not guarantee privacy or security. Provided as is, without warranty; use at your own risk. This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI.",
     "developerName": "bjreisman",
     "category": "Productivity",
     "capabilities": [

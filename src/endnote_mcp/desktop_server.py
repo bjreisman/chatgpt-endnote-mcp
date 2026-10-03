@@ -121,7 +121,16 @@ def main(config_path: str | None = None) -> None:
         from endnote_mcp.db import connect_readonly
         # Validate before protocol startup; never create or migrate an index here.
         connection = connect_readonly(Config.load(config_path).db_path)
-        connection.close()
+        try:
+            # NumPy/SciPy Windows initialization can block once stdio reader
+            # threads own pipe handles. Initialize dependencies before transport,
+            # only for an index that actually contains optional embeddings.
+            import os
+            from endnote_mcp.embeddings import has_embeddings, is_available
+            if os.name == 'nt' and has_embeddings(connection):
+                is_available()  # Missing extras still allow core search.
+        finally:
+            connection.close()
         runtime = DesktopRuntime(config_path)
         build_desktop_mcp(runtime).run(transport="stdio")
     except (OSError, ValueError, RuntimeError) as exc:

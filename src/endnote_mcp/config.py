@@ -62,7 +62,7 @@ class Config:
                 "Run 'chatgpt-endnote-mcp setup' to configure your library."
             )
 
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             raw = yaml.safe_load(f)
 
         if not isinstance(raw, dict) or not raw.get("endnote_xml") or not raw.get("pdf_dir"):
