@@ -1,104 +1,59 @@
-# Cleanup inventory — 3 October 2026
+# Cleanup record — 3 October 2026
 
-Scope: this project checkout only. No external Claude installation, EndNote files,
-configuration, index, or GitHub repository is changed. Publication and runtime
-verification wait until the owner reviews and manually deletes `archive/`.
+## Retired integrations
 
-## Provenance
+The April bridge, local HTTP companion/gateway, OpenAI API web app, tunnel-backed
+MCP server, old Claude setup CLI, and their runtime and tests were retired in
+commit `56b2560`. Their source remains recoverable from checkpoint `895b5e2`.
+No August 2026 commits were found in local history, so August provenance could
+not be confirmed. The old indexing script, handoff, unused illustration and stale
+build artifacts were also archived; the owner then manually deleted that archive.
+The previous `server.json` was superseded by the explicitly marked future
+registry template in `examples/server.registry.template.json`.
 
-The current branch is `codex/chatgpt-bridge-foundation`. Before this cleanup its
-latest commit was `91cb249` (29 April 2026). The bridge and HTTP experiments were
-introduced in April commits `4ccca76` and `91cb249`. No commits were found in
-August 2026 across local refs; an August attempt cannot be independently dated
-from this checkout. The current desktop implementation was uncommitted.
-`origin` already points to `https://github.com/bjreisman/chatgpt-endnote-mcp.git`;
-remote availability and authentication have not been checked.
+The cleanup was merged into GitHub `main` in PR #1. Conversational indexing skill
+and README guidance were subsequently merged in PR #2.
 
-## Move to archive (preserve original relative paths)
+## Packaging and configuration cleanup
 
-| Files | Reason |
-| --- | --- |
-| `src/endnote_mcp/bridge_client.py`, `bridge_models.py`, `companion.py`, `gateway.py` | April remote gateway/local HTTP companion experiment; not imported by desktop code. |
-| `src/endnote_mcp/chat_app.py`, `chatgpt_local_server.py` | OpenAI API web app and tunnel-backed MCP experiment; not used by desktop stdio server. |
-| `src/endnote_mcp/cli.py`, `server.py`, `tool_runtime.py` | Old CLI (including Claude configuration installer), MCP server and runtime; used only by the retired frontends. Current entry point is `desktop_cli:main`. |
-| `tests/test_bridge.py`, `test_chat_app.py`, `test_chatgpt_local_server.py`, `test_cli.py` | Tests exclusively for the archived implementations. Desktop and shared core tests remain active. |
-| `scripts/index_library.py` | Older indexing script, superseded by desktop CLI and staged indexing implementation. |
-| `handoff.md` | April experiment handoff with obsolete commands and local setup details. |
-| `assets/seahorse-extracellular-flux-analyzer.svg` | Unreferenced illustration, not included in the release configuration. |
-| `dist/` | Existing generated wheel/source archive still include obsolete code; regenerate after verification. Ignored by Git. |
-| `.DS_Store`, `src/.DS_Store` | Finder metadata. Ignored by Git. |
+Checkpoint `2f86173` preserves the tree before this cleanup. Root `plugin.json`
+and `mcp.json` duplicated the Codex packaging and are now in the ignored local
+`archive/packaging-consolidation/` folder for manual review/deletion. The active
+package uses `.codex-plugin/plugin.json`, `.mcp.json`, the marketplace catalog at
+`.claude-plugin/marketplace.json`, its launcher, and the bundled research skill.
+The Claude-named marketplace is a supported Codex compatibility convention.
 
-Files already missing before this work: tracked `server.json` was deleted in the
-pre-existing working tree. Preserve its last committed contents in
-`archive/prior-version/server.json` for review. The supported future registry
-example remains in `examples/server.registry.template.json`.
+Unused companion/tunnel configuration fields, URL helpers, timeout settings,
+and the unreferenced legacy configuration path have been removed. Older YAML
+files can retain those keys: the desktop loader ignores them and still reads
+only the active library paths and PDF page limit. The user's configuration and
+index have not been edited.
 
-## Keep
+## Preserved local data
 
-- Shared parser, database, PDF, embeddings, search, citation and configuration
-  modules; desktop CLI/runtime/server and indexing; their tests.
-- `.codex-plugin/`, `.claude-plugin/marketplace.json`, `plugin.json`, both MCP
-  manifests, launcher and `skills/endnote-research/`: current plugin support.
-  The Claude-named marketplace is referenced by the current Codex setup.
-- License, citation metadata, fabricated examples and GitHub Actions workflow.
-- `scripts/validate_research.py`: current stdio validation harness.
-- `.venv/`: active project environment; preserve it for testing.
-- `.local/`: ignored current research evidence and clean-install validation
-  environments from October 3, not demonstrated August leftovers. May contain
-  private library excerpts; do not commit or publish.
-- `.pytest_cache/` and Python bytecode caches: ignored generated runtime files;
-  not evidence of a retired integration. Leave for now.
-- Legacy fields in shared `config.py`: inert compatibility fields; leave in
-  place to keep this cleanup focused on retiring files.
+EndNote source XML/PDFs, the separate desktop configuration/index, external
+Claude configuration, the active virtual environment, and private `.local/`
+research evidence remain untouched. Databases, PDFs, config, caches, build
+artifacts and archives are ignored by Git and excluded from package builds.
 
-## Accompanying housekeeping
+## Verification
 
-Ignore root `archive/`, exclude it from pytest discovery, remove the retired
-`experimental` dependency extra and its CI installation, and update README and
-release metadata assertions. Source distribution already uses an explicit
-include list that excludes `archive/`; wheel includes only the active package.
+The first retirement cleanup passed 139 tests and real stdio metadata/PDF/semantic
+search, citation and PDF-page retrieval; the database hash was unchanged. Wheel
+and source package inventories excluded retired code and private data. A rebuilt
+wheel passed synthetic setup/indexing/retrieval in a separate environment with
+existing base dependencies. This was not fresh network dependency resolution.
 
-## Checkpoint and validation boundary
+The follow-up packaging/configuration cleanup is validated in its pull request.
 
-Make a local checkpoint of non-ignored source, including this inventory, before
-moving any files. Ignored runtime/private data stay outside the commit. All moves
-are reversible and their file hashes are recorded in `archive/manifest.json`.
-The archived original `server.json` comes from `91cb249`. Keep this document after
-manual deletion. Do not run the runtime suite until the owner deletes the archive
-and resumes testing. A static import/reference and whitespace review is allowed
-at this stage; it does not establish runtime correctness.
-
-Checkpoint created: `895b5e2` (full hash in `archive/manifest.json`).
-Archive moves completed and SHA256-verified; no files deleted. Runtime tests and
-GitHub operations remain pending owner review and manual archive deletion.
-
-## Post-deletion verification — 3 October 2026
-
-The owner manually deleted `archive/` and authorized testing. Verified the folder
-is absent. The checkpoint still preserves the retired source; the ignored
-archived build/Finder artifacts were manually deleted and are not in Git.
-
-- Full active suite: **139 passed**, no exclusions, in 4.79 seconds. Five
-  dependency deprecation warnings came from PyMuPDF/SWIG imports.
-- Real-library doctor: ready; 3,938 references, 65,830 PDF pages and 3,938
-  reference embeddings. Seven existing attachment failures remain; cleanup did
-  not reindex or alter attachments.
-- Real stdio session listed all 11 tools, performed metadata, PDF-text and
-  cached/offline semantic searches, citation formatting and a PDF-page read.
-  Database SHA256 before/after was identical.
-- Wheel and source distribution rebuilt. Inventories exclude retired modules,
-  archive, private local evidence, databases, PDFs, configuration and bytecode.
-  Source package now includes `docs/` to preserve the README inventory link.
-- Rebuilt wheel installed offline into a separate environment inheriting base
-  dependencies from the previous clean-install environment. Imports resolved to
-  its installed wheel, not the source checkout. Synthetic setup and indexing,
-  MCP initialization, search, semantic-unavailability reporting and shutdown
-  passed. This is package validation, not a fresh network dependency resolution.
-- Existing desktop registration was not changed; GUI interaction was not tested.
-- GitHub read-only checks: authenticated as `bjreisman`, admin access to public
-  `bjreisman/chatgpt-endnote-mcp`, default branch `main`. Remote `main` was
-  `c9f5ec5`; remote `codex/chatgpt-bridge-foundation` was `91cb249`. Nothing pushed.
-
-Proposed publication: push `codex/chatgpt-bridge-foundation` to `origin` without
-force, open a pull request into `main`, and review hosted CI before merging.
-GitHub write operations remain pending the owner's next instruction.
+- 141 active tests passed, including ignored legacy YAML settings and real stdio
+  startup/search from a copied plugin directory with the consolidated manifests.
+- Codex app-server's read-only `plugin/read` accepted the marketplace and found
+  the bundled research skill and `endnote` MCP server without the root duplicates.
+  The plugin was not installed into the user's profile during this inspection.
+- Wheel and source distributions rebuilt; inventories included the active plugin
+  files and excluded the duplicate root manifests, archive and private data.
+- The rebuilt wheel was reinstalled offline in the separate package-validation
+  environment and passed synthetic stdio search; its database hash was unchanged.
+- Desktop GUI plugin installation and fresh network dependency resolution were
+  not part of this validation.

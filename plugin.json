@@ -1,9 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "endnote-research",
-  "version": "1.4.5",
-  "author": {"name": "ChatGPT EndNote MCP contributors"},
-  "license": "AGPL-3.0-or-later",
-  "repository": "https://github.com/bjreisman/chatgpt-endnote-mcp",
-  "description": "Search a local EndNote library from Codex desktop"
-}

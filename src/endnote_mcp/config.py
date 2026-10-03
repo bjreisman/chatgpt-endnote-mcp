@@ -25,31 +25,12 @@ def get_default_config_path() -> Path:
     return get_config_dir() / "config.yaml"
 
 
-# Legacy path (for backwards compatibility with pre-1.0 installs)
-_LEGACY_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config.yaml"
-
-
 @dataclass
 class Config:
     endnote_xml: Path
     pdf_dir: Path
     db_path: Path
     max_pdf_pages: int = 30
-    companion_host: str = "127.0.0.1"
-    companion_port: int = 8765
-    companion_token: str | None = None
-    chatgpt_local_host: str = "127.0.0.1"
-    chatgpt_local_port: int = 8787
-    chatgpt_local_token: str | None = None
-    request_timeout_seconds: int = 30
-
-    @property
-    def companion_url(self) -> str:
-        return f"http://{self.companion_host}:{self.companion_port}"
-
-    @property
-    def chatgpt_local_url(self) -> str:
-        return f"http://{self.chatgpt_local_host}:{self.chatgpt_local_port}"
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> Config:
@@ -103,11 +84,4 @@ class Config:
             pdf_dir=pdf_dir,
             db_path=db_path,
             max_pdf_pages=int(raw.get("max_pdf_pages", 30)),
-            companion_host=str(raw.get("companion_host", "127.0.0.1")),
-            companion_port=int(raw.get("companion_port", 8765)),
-            companion_token=raw.get("companion_token"),
-            chatgpt_local_host=str(raw.get("chatgpt_local_host", "127.0.0.1")),
-            chatgpt_local_port=int(raw.get("chatgpt_local_port", 8787)),
-            chatgpt_local_token=raw.get("chatgpt_local_token"),
-            request_timeout_seconds=int(raw.get("request_timeout_seconds", 30)),
         )

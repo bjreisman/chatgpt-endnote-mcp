@@ -21,9 +21,9 @@ def test_package_installs_the_local_desktop_command_without_experimental_http_de
 
 
 def test_plugin_launches_stdio_server_without_download_on_startup():
-    plugin = json.loads((ROOT / "plugin.json").read_text())
+    plugin = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
     assert plugin["version"] == "1.4.5"
-    mcp = json.loads((ROOT / "mcp.json").read_text())
+    mcp = json.loads((ROOT / plugin["mcpServers"]).read_text())
     server = mcp["mcpServers"]["endnote"]
     assert server["command"] == "sh"
     args = server["args"]
@@ -58,3 +58,53 @@ def test_launcher_executes_override_and_preserves_arguments_with_spaces(tmp_path
     env.update({"CHATGPT_ENDNOTE_MCP_COMMAND": str(executable), "CAPTURE": str(capture)})
     subprocess.run(["sh", str(ROOT / "scripts/launch-desktop.sh"), "--config", str(config)], env=env, check=True)
     assert capture.read_text().splitlines() == ["serve-desktop", "--config", str(config)]
+
+
+def test_copied_plugin_launches_real_stdio_server(tmp_path):
+    import asyncio
+    import os
+    import shlex
+    import shutil
+    import sys
+    from click.testing import CliRunner
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    from endnote_mcp.desktop_cli import cli
+
+    # Exercise a plugin copy outside the source root, as in a local plugin cache.
+    plugin_root = tmp_path / "installed plugin"
+    for directory in (".codex-plugin", "scripts", "skills"):
+        shutil.copytree(ROOT / directory, plugin_root / directory)
+    shutil.copy2(ROOT / ".mcp.json", plugin_root / ".mcp.json")
+    manifest = json.loads((plugin_root / ".codex-plugin/plugin.json").read_text())
+    mcp = json.loads((plugin_root / manifest["mcpServers"]).read_text())
+    server = mcp["mcpServers"]["endnote"]
+    assert (plugin_root / manifest["skills"] / "endnote-research/SKILL.md").is_file()
+    pdfs = tmp_path / "PDF"
+    pdfs.mkdir()
+    config = tmp_path / "fixture/config.yaml"
+    runner = CliRunner()
+    result = runner.invoke(cli, ["setup", "--xml", str(ROOT / "examples/library.xml"),
+                                "--pdf-dir", str(pdfs), "--config", str(config)])
+    assert result.exit_code == 0, result.output
+    result = runner.invoke(cli, ["index", "--config", str(config), "--skip-pdfs"])
+    assert result.exit_code == 0, result.output
+    executable = tmp_path / "local desktop command"
+    executable.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable)
+                          + ' -m endnote_mcp.desktop_cli "$@"\n')
+    executable.chmod(0o755)
+
+    async def run():
+        params = StdioServerParameters(command=server["command"], args=server["args"],
+            cwd=str(plugin_root / server["cwd"]), env={**os.environ,
+                "CHATGPT_ENDNOTE_MCP_COMMAND": str(executable),
+                "CHATGPT_ENDNOTE_MCP_CONFIG": str(config)})
+        async with stdio_client(params) as (reader, writer):
+            async with ClientSession(reader, writer) as session:
+                await asyncio.wait_for(session.initialize(), 30)
+                assert len((await session.list_tools()).tools) == 11
+                result = await session.call_tool("search_references", {"query": "EXAMPLE"})
+                assert not result.isError
+                assert result.structuredContent["items"]
+
+    asyncio.run(run())
