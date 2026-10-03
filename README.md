@@ -16,9 +16,9 @@ This is an independent fork of [Gokhan Gokmen's endnote-mcp](https://github.com/
 
 ## Install the plugin and set up your library
 
-### 1. Install the development plugin
+### 1. Install the prerelease plugin
 
-**Release status:** The code identifies itself as 1.4.6, but that release is still a draft. There is no published `v1.4.6` Git tag or public release ZIP. Fresh Codex desktop onboarding is still awaiting acceptance testing. The instructions below install the development code from `main`, which can change as development continues.
+**Release status:** [Version 1.4.6](https://github.com/bjreisman/chatgpt-endnote-mcp/releases/tag/v1.4.6) is a prerelease for testing. Automated tests and an isolated runtime installation passed; fresh Codex desktop onboarding is still awaiting acceptance testing. The commands below install this specific version.
 
 Open **Terminal** on your Mac, rather than entering these commands in a Codex chat. Check that the Codex CLI supports plugin installation:
 
@@ -31,11 +31,13 @@ If `codex` is not found or `plugin` is unrecognized, install or update the [Code
 Run these two commands separately:
 
 ```sh
-codex plugin marketplace add bjreisman/chatgpt-endnote-mcp --ref main
+codex plugin marketplace add bjreisman/chatgpt-endnote-mcp --ref v1.4.6
 codex plugin add endnote-research@endnote-local
 ```
 
 The first command registers this repository as a plugin source. Codex calls that source a “marketplace”; it is our own small catalog, not an official OpenAI directory listing. The second command installs `endnote-research` from the catalog named `endnote-local`.
+
+Alternatively, download `endnote-research-1.4.6.zip` from the [release page](https://github.com/bjreisman/chatgpt-endnote-mcp/releases/tag/v1.4.6), extract it into a permanent folder, and register that folder with `codex plugin marketplace add "/actual/path/to/extracted/folder"`. Replace the example path with your own; then run the same `codex plugin add` command above.
 
 Return to Codex desktop and start a new chat. Confirm the installed plugin is enabled. Installation adds the skills and MCP configuration; the next step prepares the Python runtime and library index. The server may report missing runtime or configuration until that setup finishes.
 
@@ -76,16 +78,16 @@ Refresh your Git marketplace to pick up changes at its configured ref:
 codex plugin marketplace upgrade endnote-local
 ```
 
-This refreshes the development snapshot from `main`. Then run `codex plugin add endnote-research@endnote-local` again to install the refreshed plugin, and start a new chat or restart Codex. Version-pinned installation and public ZIP download instructions will be added when a tested release is published.
+A marketplace pinned to `v1.4.6` stays on that version. To move to a later release, remove and re-add the marketplace with that release tag, then install the plugin again. For a local ZIP installation, replace the extracted folder with the new release and reinstall the plugin. Start a new chat or restart Codex after updating.
 
 Ask Codex to update the EndNote runtime. The setup skill compares versions and uses `scripts/install-desktop.sh --replace` only for an explicitly requested replacement. Runtime installation preserves the configuration and index. Reindex when the release notes require it.
 
 ## Direct registration (alternative)
 
-If you prefer to manage installation yourself, install the CLI from a checkout with `uv tool install .`, or from the development Git source:
+If you prefer to manage installation yourself, install the CLI from a checkout with `uv tool install .`, or from the prerelease Git source:
 
 ```sh
-uv tool install 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@main'
+uv tool install 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@v1.4.6'
 chatgpt-endnote-mcp setup --xml "/path/to/EndNote.xml" --pdf-dir "/path/to/EndNote.Data/PDF"
 chatgpt-endnote-mcp index
 chatgpt-endnote-mcp doctor
@@ -95,7 +97,7 @@ Run the `codex mcp add endnote -- ...` command printed by doctor. Use this path 
 
 To install the standalone research skill, ask Codex:
 
-> Use the skill installer to install `skills/endnote-research` from `https://github.com/bjreisman/chatgpt-endnote-mcp` at the `main` branch.
+> Use the skill installer to install `skills/endnote-research` from `https://github.com/bjreisman/chatgpt-endnote-mcp` at the `v1.4.6` tag.
 
 Or, from a checkout:
 
@@ -121,7 +123,7 @@ Default configuration and index: `~/Library/Application Support/chatgpt-endnote-
 
 The launcher finds the runtime on PATH or at `~/.local/bin/chatgpt-endnote-mcp`; it never installs or downloads software at startup. Plugin files `.codex-plugin/plugin.json`, `.mcp.json`, and `.claude-plugin/marketplace.json` are required configuration; the Claude-named catalog is a supported Codex compatibility convention.
 
-For semantic search, ask the setup skill to install the semantic extra, then prepare embeddings. Manual installation from a checkout is `uv tool install --force '.[semantic]'`; for Git use `uv tool install --force --with sentence-transformers --with sqlite-vec 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@main'`. The first `embed` may download a model. Serving uses cached files only; keyword/PDF search works without semantic dependencies.
+For semantic search, ask the setup skill to install the semantic extra, then prepare embeddings. Manual installation from a checkout is `uv tool install --force '.[semantic]'`; for Git use `uv tool install --force --with sentence-transformers --with sqlite-vec 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@v1.4.6'`. The first `embed` may download a model. Serving uses cached files only; keyword/PDF search works without semantic dependencies.
 
 ## Privacy and scope
 
