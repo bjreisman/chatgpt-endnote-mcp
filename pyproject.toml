@@ -1,6 +1,6 @@
 [project]
 name = "chatgpt-endnote-mcp"
-version = "1.4.5"
+version = "1.4.6"
 description = "Local read-only EndNote MCP server for Codex desktop"
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"
@@ -28,7 +28,7 @@ classifiers = [
 dependencies = [
     "mcp[cli]>=1.12,<2",
     "lxml>=5.0",
-    "PyMuPDF>=1.24",
+    "PyMuPDF>=1.24.3",
     "pyyaml>=6.0",
     "click>=8.0",
     "rich>=13.0",
@@ -55,7 +55,7 @@ chatgpt-endnote-mcp = "endnote_mcp.desktop_cli:main"
 packages = ["src/endnote_mcp"]
 
 [tool.hatch.build.targets.sdist]
-only-include = ["src", "tests", "scripts", "examples", "skills", "docs", "README.md", "LICENSE", "CITATION.cff", "pyproject.toml", "plugin.json", "mcp.json", ".mcp.json", ".codex-plugin", ".claude-plugin", ".github"]
+only-include = ["src", "tests", "scripts", "examples", "skills", "assets", "docs", "README.md", "LICENSE", "CITATION.cff", "pyproject.toml", ".mcp.json", ".codex-plugin", ".claude-plugin", ".github"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

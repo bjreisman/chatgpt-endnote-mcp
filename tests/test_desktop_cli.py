@@ -45,6 +45,22 @@ def test_config_precedence_does_not_use_legacy_environment(tmp_path, monkeypatch
     assert Config.load(explicit).db_path == explicit.with_suffix(".db")
 
 
+def test_retired_service_settings_are_ignored_without_rewriting_config(tmp_path):
+    xml, pdfs = fixture_paths(tmp_path)
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump({
+        "endnote_xml": str(xml), "pdf_dir": str(pdfs),
+        "companion_port": "obsolete", "chatgpt_local_port": "obsolete",
+        "request_timeout_seconds": "obsolete", "companion_token": "unused",
+    }))
+    original = path.read_bytes()
+    cfg = Config.load(path)
+    assert cfg.endnote_xml == xml
+    assert cfg.pdf_dir == pdfs
+    assert cfg.db_path == tmp_path / "library.db"
+    assert path.read_bytes() == original
+
+
 def test_setup_index_doctor_local_workflow(tmp_path):
     xml, pdfs = fixture_paths(tmp_path)
     cfg = tmp_path / "new" / "config.yaml"

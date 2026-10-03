@@ -1,7 +1,45 @@
 {
   "name": "endnote-research",
-  "version": "1.4.5",
-  "description": "Search a local EndNote library from Codex desktop",
+  "version": "1.4.6",
+  "description": "Index and search exported EndNote libraries locally from Codex desktop.",
   "mcpServers": "./.mcp.json",
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "author": {
+    "name": "bjreisman",
+    "url": "https://github.com/bjreisman"
+  },
+  "repository": "https://github.com/bjreisman/chatgpt-endnote-mcp",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "endnote",
+    "research",
+    "citations",
+    "local-library"
+  ],
+  "interface": {
+    "displayName": "EndNote Research",
+    "shortDescription": "Search exported libraries",
+    "longDescription": "Unofficial tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, and optionally use locally prepared semantic embeddings. Requires macOS, uv, and an exported library. Source files and the index stay local; retrieved evidence may be sent to the AI service used by Codex. Local operation does not guarantee privacy or security. Provided as is, without warranty; use at your own risk. This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI.",
+    "developerName": "bjreisman",
+    "category": "Productivity",
+    "capabilities": [
+      "Local library search",
+      "Citations",
+      "PDF evidence"
+    ],
+    "websiteURL": "https://github.com/bjreisman/chatgpt-endnote-mcp",
+    "supportURL": "https://github.com/bjreisman/chatgpt-endnote-mcp/issues",
+    "defaultPrompt": [
+      "Set up my EndNote library",
+      "Index my EndNote library",
+      "Search my library for alternative oxidase"
+    ],
+    "logo": "./assets/endnote-research.svg",
+    "composerIcon": "./assets/endnote-research.svg"
+  },
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/endnote-setup/SKILL.md"
+    }
+  }
 }
