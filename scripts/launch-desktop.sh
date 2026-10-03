@@ -8,7 +8,7 @@ elif command -v chatgpt-endnote-mcp >/dev/null 2>&1; then
 elif [ -x "$HOME/.local/bin/chatgpt-endnote-mcp" ]; then
   executable="$HOME/.local/bin/chatgpt-endnote-mcp"
 else
-  printf '%s\n' "chatgpt-endnote-mcp was not found. Install it with: uv tool install 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git'" >&2
+  printf '%s\n' "EndNote runtime is not installed. Ask Codex: Set up my EndNote library." >&2
   exit 127
 fi
 

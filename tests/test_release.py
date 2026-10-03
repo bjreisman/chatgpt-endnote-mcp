@@ -22,7 +22,7 @@ def test_package_installs_the_local_desktop_command_without_experimental_http_de
 
 def test_plugin_launches_stdio_server_without_download_on_startup():
     plugin = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
-    assert plugin["version"] == "1.4.5"
+    assert plugin["version"] == tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     mcp = json.loads((ROOT / plugin["mcpServers"]).read_text())
     server = mcp["mcpServers"]["endnote"]
     assert server["command"] == "sh"
