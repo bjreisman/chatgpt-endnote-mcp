@@ -3,6 +3,9 @@ message: "If you use this software in your research, please cite it as below."
 type: software
 title: "ChatGPT EndNote MCP: Local EndNote Search for Codex Desktop"
 authors:
+  - family-names: Reisman
+    given-names: Benjamin
+    orcid: "https://orcid.org/0000-0001-7847-2612"
   - family-names: Gokmen
     given-names: Gokhan
     orcid: "https://orcid.org/0000-0001-8883-1770"
