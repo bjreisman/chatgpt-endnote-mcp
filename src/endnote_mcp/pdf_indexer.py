@@ -5,10 +5,10 @@ from __future__ import annotations
 import contextlib
 import logging
 import os
-import signal
+import json
+import subprocess
 import sys
-from pathlib import Path
-from typing import Generator
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import unquote
 
 import pymupdf as fitz
@@ -29,13 +29,6 @@ def _suppress_stderr():
         os.close(devnull)
 
 
-class _PdfTimeout(Exception):
-    pass
-
-
-def _timeout_handler(signum, frame):
-    raise _PdfTimeout("PDF extraction timed out")
-
 logger = logging.getLogger(__name__)
 
 # Cached filename → path mapping (built once per pdf_dir)
@@ -51,75 +44,61 @@ def _build_pdf_cache(pdf_dir: Path) -> None:
     logger.info("Building PDF file cache for %s...", pdf_dir)
     _pdf_cache = {}
     for path in pdf_dir.rglob("*.[pP][dD][fF]"):
-        _pdf_cache.setdefault(path.name, []).append(path)
+        key = path.name.casefold() if os.name == 'nt' else path.name
+        _pdf_cache.setdefault(key, []).append(path)
         # Also index URL-decoded name
         decoded = unquote(path.name)
         if decoded != path.name:
-            _pdf_cache.setdefault(decoded, []).append(path)
+            key = decoded.casefold() if os.name == 'nt' else decoded
+            _pdf_cache.setdefault(key, []).append(path)
     _pdf_cache_dir = pdf_dir
     logger.info("Cached %d PDF files.", len(_pdf_cache))
 
 
+def _python_command(code, *arguments):
+    if os.name == 'nt':
+        # Windows venv python.exe may redirect to another process. Killing the
+        # redirector leaves extraction running. Start its actual interpreter
+        # directly and restore the installed runtime's resolved import paths.
+        executable = getattr(sys, '_base_executable', None) or sys.executable
+        bootstrap = 'import json,sys;sys.path[:]=json.loads(sys.argv.pop(1));' + code
+        return [executable, '-c', bootstrap, json.dumps(sys.path), *map(str, arguments)]
+    return [sys.executable, '-c', code, *map(str, arguments)]
+
+
+def _worker_command(path):
+    if os.name == 'nt':
+        return _python_command("import runpy;runpy.run_module('endnote_mcp.pdf_worker',run_name='__main__')", path)
+    return [sys.executable, '-m', 'endnote_mcp.pdf_worker', str(path)]
+
+
 def extract_pages(pdf_path: str | Path, timeout: int = 30, *, strict: bool = False) -> list[tuple[int, str]]:
-    """Extract (page_number, text) for each page in a PDF.
-
-    Page numbers are 1-based to match human-readable page references.
-    Returns a list instead of generator so the timeout covers the full extraction.
-    Skips PDFs that take longer than `timeout` seconds.
-    """
-    pdf_path = Path(pdf_path)
-
-    # Set alarm-based timeout (Unix only, ignored on Windows)
-    old_handler = None
+    """Extract all pages under a portable deadline; never return partial text."""
+    process = None
     try:
-        old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-        signal.alarm(timeout)
-    except (OSError, AttributeError, ValueError):
-        pass  # Windows or signal not available
-
-    try:
-        with _suppress_stderr():
-            doc = fitz.open(str(pdf_path))
-    except _PdfTimeout:
-        logger.warning("Timeout opening PDF %s", pdf_path.name)
-        if old_handler is not None:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
-        if strict:
-            raise
-        return []
-    except Exception as e:
-        logger.warning("Failed to open PDF %s: %s", pdf_path.name, e)
-        if old_handler is not None:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
-        if strict:
-            raise
-        return []
-
-    results = []
-    try:
-        with _suppress_stderr():
-            for page_idx in range(len(doc)):
-                page = doc[page_idx]
-                text = page.get_text("text")
-                if text and text.strip():
-                    results.append((page_idx + 1, text.strip()))
-    except _PdfTimeout:
-        logger.warning("Timeout extracting PDF %s (got %d pages before timeout)", pdf_path.name, len(results))
-        if strict:
-            raise
-    finally:
-        doc.close()
-        # Cancel alarm and restore handler
+        process = subprocess.Popen(_worker_command(Path(pdf_path).resolve()),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
         try:
-            signal.alarm(0)
-            if old_handler is not None:
-                signal.signal(signal.SIGALRM, old_handler)
-        except (OSError, AttributeError, ValueError):
-            pass
-
-    return results
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired as exc:
+            raise TimeoutError('PDF extraction timed out') from exc
+        if process.returncode:
+            raise RuntimeError('PDF extraction worker failed: ' + stderr.decode('utf-8', errors='replace')[-2000:])
+        result = json.loads(stdout.decode('utf-8'))
+        if result.get('error'):
+            raise ValueError(result['error'])
+        return [(int(n), text) for n, text in result['pages']]
+    except Exception as exc:
+        if strict:
+            raise
+        logger.warning('Failed to extract PDF %s: %s', Path(pdf_path).name, exc)
+        return []
+    finally:
+        if process is not None:
+            if process.poll() is None:
+                process.kill()
+            process.communicate()
 
 
 def read_pages(pdf_path: str | Path, start: int, end: int) -> list[dict]:
@@ -163,8 +142,11 @@ def find_pdf(pdf_dir: Path, pdf_filename: str) -> Path | None:
     if not pdf_filename:
         return None
     root = Path(pdf_dir).resolve()
-    relative = Path(unquote(pdf_filename))
-    if relative.is_absolute() or ".." in relative.parts or "\\" in str(relative):
+    decoded = unquote(pdf_filename)
+    windows = PureWindowsPath(decoded)
+    relative = PurePosixPath(decoded.replace('\\', '/'))
+    if (windows.drive or windows.root or relative.is_absolute()
+            or '..' in relative.parts or ':' in decoded or '\0' in decoded):
         return None
     direct = root / relative
     if direct.exists():
@@ -172,7 +154,8 @@ def find_pdf(pdf_dir: Path, pdf_filename: str) -> Path | None:
         return resolved if resolved.is_relative_to(root) and resolved.is_file() else None
     _build_pdf_cache(root)
     candidates = set()
-    for path in _pdf_cache.get(relative.name, []):
+    key = relative.name.casefold() if os.name == 'nt' else relative.name
+    for path in _pdf_cache.get(key, []):
         resolved = path.resolve()
         if resolved.is_relative_to(root) and resolved.is_file():
             candidates.add(resolved)
@@ -194,11 +177,7 @@ def extract_pages_checked(pdf_path: str | Path, timeout: int = 30) -> tuple[list
     path = Path(pdf_path)
     if path.stat().st_size > 200 * 1024 * 1024:
         return [], "failed", "PDF exceeds 200 MB extraction limit"
-    # Opening separately distinguishes corrupt PDFs from successfully read blank PDFs.
     try:
-        with fitz.open(str(path)) as doc:
-            if doc.needs_pass:
-                return [], "failed", "PDF requires a password"
         pages = extract_pages(path, timeout=timeout, strict=True)
     except Exception as exc:
         return [], "failed", str(exc)

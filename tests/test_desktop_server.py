@@ -140,10 +140,17 @@ def test_real_runtime_stdio_without_network_or_writes(tmp_path, sample_ref):
     runner = tmp_path / 'readonly_server.py'
     runner.write_text('''import socket, sqlite3, sys
 _original_socket = socket.socket
+_original_socketpair = socket.socketpair
 class NoNetworkSocket(_original_socket):
     def connect(self, *a, **kw): raise AssertionError("Network access attempted")
     def bind(self, *a, **kw): raise AssertionError("Listening socket attempted")
 socket.socket = NoNetworkSocket
+def internal_socketpair(*a, **kw):
+    # Windows asyncio needs its own loopback wakeup pair, not a service socket.
+    socket.socket = _original_socket
+    try: return _original_socketpair(*a, **kw)
+    finally: socket.socket = NoNetworkSocket
+socket.socketpair = internal_socketpair
 _original_connect = sqlite3.connect
 def readonly_connect(database, *a, **kw):
     assert "mode=ro" in str(database), "Writable database connection attempted"
@@ -154,6 +161,8 @@ main(sys.argv[1])
 ''')
     def snapshot():
         return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in tmp_path.iterdir() if p.is_file()}
+    from endnote_mcp.db import connect_readonly
+    connect_readonly(database).close()  # Create the empty Windows synchronization sidecar.
     before = snapshot()
 
     async def run():

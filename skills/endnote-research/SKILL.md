@@ -7,6 +7,15 @@ description: Index or update a local EndNote library when the user asks to index
 
 ## Index or update the library
 
+On Windows, resolve the native `.exe` via the runtime override, PATH, configured
+uv executable directories, or `%USERPROFILE%\.local\bin`. A checkout environment
+uses `.venv\Scripts\python.exe -m endnote_mcp.desktop_cli`. In PowerShell use `&`
+before a quoted executable, single-quote paths, and double embedded apostrophes.
+Restart Codex after runtime upgrades. Windows readers may briefly delay index or
+embedding publication; if an `index_busy` error is reported, let active requests
+finish and retry. Empty persistent lock files are normal and must not be deleted
+to bypass a running operation. Crash recovery releases OS locks automatically.
+
 When the user says “index my EndNote library”, “reindex my library”, “refresh my library index”, or “update my library index”, run incremental indexing through the local CLI in the shell. The user's request authorizes incremental indexing; carry it out rather than just giving them a command to run. Requests to “rebuild” require the confirmation below before indexing. Indexing writes the separate derived index and reads the EndNote XML export and PDFs without editing them. The MCP tools remain read-only; indexing is a local CLI operation.
 
 Use the executable and configuration for the current desktop integration. Resolve `CHATGPT_ENDNOTE_MCP_COMMAND` if set, otherwise `chatgpt-endnote-mcp` on `PATH` or `~/.local/bin/chatgpt-endnote-mcp`. In a source checkout with an installed project environment, `.venv/bin/python -m endnote_mcp.desktop_cli` is also supported. Preserve an explicit configuration path used for desktop registration with `--config PATH`; otherwise the CLI honors `CHATGPT_ENDNOTE_MCP_CONFIG` and its default config. Quote executable and path arguments containing spaces. Do not substitute the old `endnote-mcp` command or Claude configuration.
@@ -25,7 +34,7 @@ If the user asks to “rebuild” the library/index, including a “full rebuild
 
 Use `--sync-deletions` only when the user requests removal of records absent from the export and confirms that the export contains the complete library. Use `--skip-pdfs` for a metadata-only request. Use `--embed` when the user also requests generating or refreshing semantic embeddings; model preparation may download files and requires the semantic dependencies. Ordinary indexing does not automatically prepare embeddings.
 
-Allow indexing to finish and relay meaningful progress. If it fails, report the actual error and resolve it within the requested scope; do not claim success. After successful indexing, run `status` with the same configuration and summarize reference/PDF counts, attachment failures or textless PDFs, and whether embeddings are prepared. Do not silently install software, change the library configuration, or rebuild merely because a research search returned no results.
+Allow indexing to finish and relay its updates every 100 references. Initial indexing may take a while; unchanged successfully indexed or textless PDFs are skipped on later updates. Do not invent a percentage or ETA. If it fails, report the actual error and resolve it within the requested scope; do not claim success. After successful indexing, run `status` with the same configuration and summarize reference/PDF counts, attachment failures or textless PDFs, and whether embeddings are prepared. Do not silently install software, change the library configuration, or rebuild merely because a research search returned no results.
 
 ## Search and cite
 

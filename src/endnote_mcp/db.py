@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from endnote_mcp.locking import reader_lock
 
 SCHEMA_VERSION = 2
 
@@ -13,11 +14,32 @@ class IncompatibleIndexError(RuntimeError):
     """The derived index must be rebuilt locally."""
 
 
+class _ReadConnection(sqlite3.Connection):
+    _publication_lock = None
+
+    def close(self):
+        try:
+            super().close()
+        finally:
+            if self._publication_lock is not None:
+                self._publication_lock.close()
+                self._publication_lock = None
+
+
 def connect_readonly(db_path: str | Path) -> sqlite3.Connection:
     path = Path(db_path).resolve()
     if not path.is_file():
         raise FileNotFoundError("Index missing. Run chatgpt-endnote-mcp index locally.")
-    conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)
+    gate = reader_lock(path)
+    try:
+        if not path.is_file():
+            raise FileNotFoundError("Index missing. Run chatgpt-endnote-mcp index locally.")
+        conn = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, factory=_ReadConnection)
+        conn._publication_lock = gate
+    except BaseException:
+        if gate is not None:
+            gate.close()
+        raise
     conn.row_factory = sqlite3.Row
     try:
         conn.execute("PRAGMA query_only=ON")
@@ -38,6 +60,9 @@ def connect_readonly(db_path: str | Path) -> sqlite3.Connection:
     except (sqlite3.DatabaseError, IncompatibleIndexError) as exc:
         conn.close()
         raise IncompatibleIndexError("Index missing or incompatible. Run chatgpt-endnote-mcp index locally.") from exc
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 

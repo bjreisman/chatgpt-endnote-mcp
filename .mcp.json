@@ -3,6 +3,16 @@
     "endnote": {
       "command": "sh",
       "args": ["./scripts/launch-desktop.sh"],
+      "env_vars": [
+        "CHATGPT_ENDNOTE_MCP_COMMAND",
+        "CHATGPT_ENDNOTE_MCP_CONFIG",
+        "UV_TOOL_BIN_DIR",
+        "XDG_BIN_HOME",
+        "XDG_DATA_HOME",
+        "HF_HOME",
+        "HF_HUB_CACHE",
+        "SENTENCE_TRANSFORMERS_HOME"
+      ],
       "cwd": "."
     }
   }

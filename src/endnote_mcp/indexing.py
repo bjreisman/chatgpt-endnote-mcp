@@ -1,7 +1,6 @@
 """Atomic local imports into a product-specific derived index."""
 from __future__ import annotations
 
-from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -9,6 +8,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 
+from endnote_mcp.locking import management_lock, publish_database
 from endnote_mcp import db
 from endnote_mcp.endnote_parser import parse_endnote_xml
 from endnote_mcp.pdf_indexer import extract_pages_checked, find_pdf, fingerprint_file
@@ -17,36 +17,6 @@ from endnote_mcp.pdf_indexer import extract_pages_checked, find_pdf, fingerprint
 def attachment_id(rec_number: int, relative_path: str) -> str:
     return hashlib.sha256(f"{rec_number}\0{relative_path}".encode()).hexdigest()
 
-
-@contextmanager
-def management_lock(db_path):
-    """Reject concurrent index/embed management against a stable lock inode."""
-    path = Path(str(db_path) + ".lock")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        import fcntl
-    except ImportError:
-        # Atomic directory locking is a conservative portable fallback. A crash
-        # may require deleting this directory after checking no manager is active.
-        lock_dir = Path(str(path) + ".d")
-        try:
-            lock_dir.mkdir()
-        except FileExistsError as exc:
-            raise RuntimeError("Another index/embed operation is active; retry after it completes") from exc
-        try:
-            yield
-        finally:
-            lock_dir.rmdir()
-        return
-    with path.open("a+b") as stream:
-        try:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
-            raise RuntimeError("Another index/embed operation is active; retry after it completes") from exc
-        try:
-            yield
-        finally:
-            fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def index_library(cfg, full=False, skip_pdfs=False, sync_deletions=False, progress=None) -> dict:
@@ -147,9 +117,7 @@ def _index_library(cfg, full=False, skip_pdfs=False, sync_deletions=False, progr
         conn.execute("PRAGMA journal_mode=DELETE")
         conn.close()
         conn = None
-        # This product uses stage-only writers. Old read-only connections keep their
-        # original inode until they reconnect; no live target WAL is produced.
-        os.replace(stage, target)
+        publish_database(stage, target)
         return stats
     finally:
         if conn is not None:

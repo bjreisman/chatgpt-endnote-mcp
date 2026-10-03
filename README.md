@@ -24,15 +24,82 @@ Your EndNote library is exported to XML, then indexed with PDF text in a separat
 
 ## Requirements
 
-- macOS and Codex desktop
+- macOS or Windows 11 x64 and Codex desktop (use the matching platform package)
 - [Codex CLI](https://developers.openai.com/codex/cli/) with `codex plugin` support, for the Terminal installation steps below
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) for the local Python runtime
 - An XML export from EndNote and its PDF attachment directory, usually `<library>.Data/PDF` next to the `.enl` file or `PDF` inside an `.enlp` package
 - Permission to install Python dependencies and read your selected library files
 
+### Windows versus macOS/Linux
+
+The 1.4.7 candidate adds native Windows support. The research tools, CLI commands,
+configuration precedence, and index schema are the same across platforms.
+
+| Setup detail | Windows 11 x64 | macOS / Linux |
+| --- | --- | --- |
+| Plugin package | `endnote-research-1.4.7-windows.zip`, extracted local marketplace | `endnote-research-1.4.7.zip`; the Git marketplace also uses the Unix manifest |
+| Shell and launcher | Windows PowerShell 5.1 for setup; `cmd.exe` launcher | POSIX shell (`sh`) |
+| Runtime installer | `scripts/install-desktop.ps1`; `-Replace`, `-Semantic` | `scripts/install-desktop.sh`; `--replace`, `--semantic` |
+| Executable | `chatgpt-endnote-mcp.exe` | `chatgpt-endnote-mcp` |
+| Default configuration | `%APPDATA%\chatgpt-endnote-mcp\config.yaml` | macOS: `~/Library/Application Support/chatgpt-endnote-mcp/config.yaml`; Linux: `~/.config/chatgpt-endnote-mcp/config.yaml` |
+| Quoted executable/path | `& 'C:\path with spaces\chatgpt-endnote-mcp.exe'` | `'/path with spaces/chatgpt-endnote-mcp'` |
+| Index replacement | Readers and publication coordinate through an OS file lock, with a 30-second wait limit | Atomic replacement allows an existing reader to finish against the previous database |
+
+The database defaults to `library.db` beside the configuration. Windows requires
+neither WSL nor Git Bash. Linux uses the existing Unix CLI/MCP workflow; the
+desktop installation walkthrough below is for macOS and Windows.
+
 ## Install the plugin and set up your library
 
-### 1. Install the prerelease plugin
+### Windows package (1.4.7 development prerelease)
+
+Native Windows support is being validated for 1.4.7. This version is prepared
+for review; it has not been published. Do not use the macOS Git marketplace
+installation below on Windows: the repository's default manifest launches `sh`.
+
+Build or obtain `endnote-research-1.4.7-windows.zip`, extract it into a permanent
+folder, then run these commands separately in Windows PowerShell 5.1:
+
+```powershell
+codex plugin marketplace add 'C:\path\to\extracted\endnote-research'
+codex plugin add endnote-research@endnote-local
+```
+
+If `endnote-local` already points to another platform/version, remove and re-add
+that marketplace with the correct extracted folder before reinstalling. Keep
+only one EndNote MCP connection enabled. Windows does not require WSL, Git Bash,
+PowerShell 7, or a separately installed Python: uv can prepare the runtime.
+
+Ask Codex: **Set up my EndNote library.** The setup skill runs the bundled
+PowerShell installer explicitly. For manual runtime installation from an extracted
+Windows package:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File '.\scripts\install-desktop.ps1'
+& 'C:\absolute\runtime\chatgpt-endnote-mcp.exe' setup --xml 'C:\Library\EndNote.xml' --pdf-dir 'C:\Library\EndNote.Data\PDF'
+& 'C:\absolute\runtime\chatgpt-endnote-mcp.exe' index
+& 'C:\absolute\runtime\chatgpt-endnote-mcp.exe' doctor
+```
+
+Use the executable path printed by the installer. `-ExecutionPolicy Bypass` applies
+only to that invocation. Missing uv is reported; the installer does not install uv.
+Add `-Replace` only for an explicitly requested runtime update and `-Semantic`
+only for optional semantic dependencies, then run `embed` to prepare the model.
+Restart Codex after runtime updates so older processes cannot bypass publication
+locks. Startup never installs software or downloads models.
+
+Windows defaults are `%APPDATA%\chatgpt-endnote-mcp\config.yaml` and `library.db`.
+For custom runtime locations, make `CHATGPT_ENDNOTE_MCP_COMMAND` available to Codex;
+for custom configuration, use `CHATGPT_ENDNOTE_MCP_CONFIG`. The launcher also checks
+PATH, `UV_TOOL_BIN_DIR`, XDG executable directories, and `%USERPROFILE%\.local\bin`.
+Paths with spaces and Unicode are supported. Windows readers briefly serialize
+database access; publication waits up to 30 seconds and preserves the old index
+if an active or legacy reader prevents replacement. Empty `.lock` sidecars are
+normal: OS ownership, not file existence, determines whether a lock is active.
+
+See [Windows validation and release gates](docs/windows-acceptance.md).
+
+### 1. Install the macOS prerelease plugin
 
 **Release status:** [Version 1.4.6](https://github.com/bjreisman/chatgpt-endnote-mcp/releases/tag/v1.4.6) is a prerelease for testing. Automated tests and an isolated runtime installation passed; fresh Codex desktop onboarding is still awaiting acceptance testing. The commands below install this specific version.
 
@@ -103,7 +170,23 @@ After adding or changing references, re-export XML to the configured path, then 
 
 > Index my EndNote library.
 
-Indexing, reindexing, and refreshing are incremental: they process changed records and PDFs while reusing unchanged PDF text. If you ask “Rebuild my library index”, the skill explains that a full rebuild re-extracts every PDF and discards existing semantic embeddings, then asks you to choose an incremental reindex or confirm a full rebuild before starting. Ask “Index metadata only” to skip PDFs, or “Index my library and refresh semantic embeddings” for embedding preparation. Ordinary indexing does not automatically prepare embeddings. Synchronizing removals requires an explicit request and confirmation that the export is complete.
+Indexing, reindexing, and refreshing are incremental: they process changed records
+and PDFs while reusing unchanged PDF text. Unchanged PDFs
+that were successfully indexed or found textless are skipped; failed PDFs are
+retried. The CLI reports `Processed 100 references...`, then 200, 300, and so on.
+Initial indexing can take a while for large libraries. In the 1.4.7 candidate,
+PDF extraction uses a short-lived Python subprocess on every platform to enforce
+deadlines and isolate crashes. Skipped PDFs and research searches do not start
+extraction workers; the worker adds no new runtime dependency.
+
+If you ask “Rebuild my library index”, the skill explains that a full rebuild
+re-extracts every PDF and discards existing semantic embeddings, then asks you to
+choose an incremental reindex or confirm a full rebuild before starting.
+Ask “Index metadata only” to skip PDFs, or “Index my library and refresh semantic
+embeddings” for embedding preparation. Ordinary indexing does not automatically
+prepare embeddings.
+Synchronizing removals requires an explicit request and confirmation that the
+export is complete.
 
 ## Update the plugin and runtime
 
@@ -115,11 +198,21 @@ codex plugin marketplace upgrade endnote-local
 
 A marketplace pinned to `v1.4.6` stays on that version. To move to a later release, remove and re-add the marketplace with that release tag, then install the plugin again. For a local ZIP installation, replace the extracted folder with the new release and reinstall the plugin. Start a new chat or restart Codex after updating.
 
-Ask Codex to update the EndNote runtime. The setup skill compares versions and uses `scripts/install-desktop.sh --replace` only for an explicitly requested replacement. Runtime installation preserves the configuration and index. Reindex when the release notes require it.
+Ask Codex to update the EndNote runtime. The setup skill compares versions and
+uses `scripts/install-desktop.sh --replace` on macOS/Linux or
+`scripts/install-desktop.ps1 -Replace` on Windows only for an explicitly requested
+replacement. Runtime installation preserves the configuration and index. Restart
+Codex after a runtime upgrade before indexing or preparing embeddings; old
+processes do not participate in Windows publication locking. Reindex when the
+release notes require it.
 
 ## Direct registration (alternative)
 
-If you prefer to manage installation yourself, install the CLI from a checkout with `uv tool install .`, or from the prerelease Git source:
+If you prefer to manage installation yourself, install the CLI from a checkout
+with `uv tool install .` on either platform. For Windows, use the 1.4.7 candidate
+source or Windows package, then follow the PowerShell setup/index/doctor commands
+above. The older `v1.4.6` source below is the macOS/Unix prerelease and does not
+provide native Windows support:
 
 ```sh
 uv tool install 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@v1.4.6'
@@ -154,11 +247,29 @@ If already installed, update its `SKILL.md` rather than creating a nested copy. 
 | `doctor` | Check readiness and print direct-registration instructions |
 | `serve-desktop` | Start the read-only stdio MCP server |
 
-Default configuration and index: `~/Library/Application Support/chatgpt-endnote-mcp/config.yaml` and `library.db`. Every command accepts `--config PATH`. That takes precedence over `CHATGPT_ENDNOTE_MCP_CONFIG`, then the default. For a custom plugin configuration, make `CHATGPT_ENDNOTE_MCP_CONFIG` available to Codex when it launches the server. `CHATGPT_ENDNOTE_MCP_COMMAND` can select an absolute runtime executable.
+Default configuration directories are listed in the platform comparison above;
+each contains `config.yaml` and `library.db`. Every command accepts `--config PATH`.
+That takes precedence over `CHATGPT_ENDNOTE_MCP_CONFIG`, then the platform default.
+For a custom plugin configuration, make `CHATGPT_ENDNOTE_MCP_CONFIG` available to
+Codex when it launches the server. `CHATGPT_ENDNOTE_MCP_COMMAND` can select an
+absolute runtime executable. Assigning `$env:...` in PowerShell affects that
+session and its child processes; it does not change an already-running Codex app.
 
-The launcher finds the runtime on PATH or at `~/.local/bin/chatgpt-endnote-mcp`; it never installs or downloads software at startup. Plugin files `.codex-plugin/plugin.json`, `.mcp.json`, and `.claude-plugin/marketplace.json` are required configuration; the Claude-named catalog is a supported Codex compatibility convention.
+The Unix launcher finds the runtime on PATH or at
+`~/.local/bin/chatgpt-endnote-mcp`, unless the executable override is set. The
+Windows discovery order is described in its installation section. Neither
+launcher installs or downloads software at startup. Plugin files
+`.codex-plugin/plugin.json`, `.mcp.json`, and `.claude-plugin/marketplace.json`
+are required configuration; the Claude-named catalog is a supported Codex
+compatibility convention.
 
-For semantic search, ask the setup skill to install the semantic extra, then prepare embeddings. Manual installation from a checkout is `uv tool install --force '.[semantic]'`; for Git use `uv tool install --force --with sentence-transformers --with sqlite-vec 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@v1.4.6'`. The first `embed` may download a model. Serving uses cached files only; keyword/PDF search works without semantic dependencies.
+For semantic search, ask the setup skill to install the semantic extra, then
+prepare embeddings. The bundled installer accepts `-Semantic` on Windows and
+`--semantic` on macOS/Linux; add the platform's replacement flag when updating an
+existing runtime. Manual installation from a checkout is
+`uv tool install --force '.[semantic]'`. The first `embed` may download a model.
+Serving uses cached files only; keyword/PDF search works without semantic
+dependencies.
 
 ## Troubleshooting
 
@@ -186,8 +297,9 @@ uv sync --extra dev
 uv run pytest
 uv run python -m hatchling build
 uv run python scripts/build_plugin.py
+uv run python scripts/build_plugin.py --platform windows
 ```
 
-The last command converts the source distribution into a plugin ZIP containing runtime source, manifests, scripts, skills, and icons. It excludes local libraries, configuration, databases, and archives. See [release validation](docs/plugin-release.md) for the desktop acceptance checklist and limitations.
+The packaging commands convert the source distribution into Unix and Windows plugin ZIPs containing runtime source, manifests, scripts, skills, and icons. They exclude local libraries, configuration, databases, and archives. See [release validation](docs/plugin-release.md) for the desktop acceptance checklist and limitations.
 
 See [LICENSE](LICENSE) and [CITATION.cff](CITATION.cff) for license and attribution.
