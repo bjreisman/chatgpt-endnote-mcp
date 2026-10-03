@@ -9,6 +9,13 @@ build/
 
 # Database
 *.db
+*.db-wal
+*.db-shm
+*.db.lock
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
 
 # IDE
 .vscode/
@@ -23,5 +30,17 @@ Thumbs.db
 # Config (contains user-specific paths)
 config.yaml
 
+# Local setup, model caches, and generated research output
+.local/
+.artifacts/
+*.pdf
+*.PDF
+*research-report*
+*library-export*.xml
+*.Data/
+
 # uv
 uv.lock
+
+# Local retirement archive (review and delete manually)
+/archive/

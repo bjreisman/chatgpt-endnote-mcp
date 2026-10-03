@@ -29,7 +29,7 @@ def is_available() -> bool:
         return False
 
 
-def load_model(model_name: str = MODEL_NAME):
+def load_model(model_name: str = MODEL_NAME, *, local_files_only: bool = True):
     """Load the embedding model (cached after first call)."""
     global _model
     if _model is not None:
@@ -38,7 +38,7 @@ def load_model(model_name: str = MODEL_NAME):
     from sentence_transformers import SentenceTransformer
 
     logger.info("Loading embedding model: %s", model_name)
-    _model = SentenceTransformer(model_name)
+    _model = SentenceTransformer(model_name, local_files_only=local_files_only)
     return _model
 
 
@@ -72,6 +72,8 @@ def build_search_text(ref: dict) -> str:
                 keywords = []
         if keywords:
             parts.append("Keywords: " + ", ".join(keywords))
+    if ref.get("research_notes"):
+        parts.append("Personal research notes: " + ref["research_notes"])
     return " ".join(parts)
 
 
@@ -95,14 +97,18 @@ def search_semantic(
     query_embedding: bytes,
     *,
     limit: int = 20,
+    year_from=None, year_to=None, author=None, ref_type=None, offset: int = 0,
 ) -> list[dict]:
     """Find nearest references by cosine similarity.
 
     Uses Python-side computation (fast enough for ~4K vectors).
     Returns list of dicts with rec_number, similarity, and metadata.
     """
+    from endnote_mcp.search import filter_sql
+    clause, params = filter_sql(year_from, year_to, author, ref_type)
     rows = conn.execute(
-        "SELECT rec_number, embedding FROM reference_embeddings"
+        "SELECT e.rec_number, e.embedding FROM reference_embeddings e "
+        "JOIN references_ r ON r.rec_number=e.rec_number WHERE 1=1" + clause, params
     ).fetchall()
 
     if not rows:
@@ -120,8 +126,8 @@ def search_semantic(
     similarities = matrix @ query_vec
 
     # Get top-k indices
-    top_k = min(limit, len(rec_numbers))
-    top_indices = np.argpartition(-similarities, top_k)[:top_k]
+    top_k = min(limit + offset, len(rec_numbers))
+    top_indices = np.argsort(-similarities)[:top_k]
     top_indices = top_indices[np.argsort(-similarities[top_indices])]
 
     # Fetch metadata for top results
@@ -149,7 +155,7 @@ def search_semantic(
                 "similarity": sim,
             })
 
-    return results
+    return results[offset:offset + limit]
 
 
 def search_by_embedding(

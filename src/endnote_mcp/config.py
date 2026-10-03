@@ -13,11 +13,11 @@ import yaml
 def get_config_dir() -> Path:
     """Return the platform-appropriate config directory."""
     if platform.system() == "Darwin":
-        return Path.home() / "Library" / "Application Support" / "endnote-mcp"
+        return Path.home() / "Library" / "Application Support" / "chatgpt-endnote-mcp"
     elif platform.system() == "Windows":
-        return Path(os.environ.get("APPDATA", Path.home())) / "endnote-mcp"
+        return Path(os.environ.get("APPDATA", Path.home())) / "chatgpt-endnote-mcp"
     else:
-        return Path.home() / ".config" / "endnote-mcp"
+        return Path.home() / ".config" / "chatgpt-endnote-mcp"
 
 
 def get_default_config_path() -> Path:
@@ -35,6 +35,21 @@ class Config:
     pdf_dir: Path
     db_path: Path
     max_pdf_pages: int = 30
+    companion_host: str = "127.0.0.1"
+    companion_port: int = 8765
+    companion_token: str | None = None
+    chatgpt_local_host: str = "127.0.0.1"
+    chatgpt_local_port: int = 8787
+    chatgpt_local_token: str | None = None
+    request_timeout_seconds: int = 30
+
+    @property
+    def companion_url(self) -> str:
+        return f"http://{self.companion_host}:{self.companion_port}"
+
+    @property
+    def chatgpt_local_url(self) -> str:
+        return f"http://{self.chatgpt_local_host}:{self.chatgpt_local_port}"
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> Config:
@@ -42,23 +57,20 @@ class Config:
 
         Resolution order:
         1. Explicit *path* argument
-        2. ENDNOTE_MCP_CONFIG environment variable
-        3. Platform config dir (~/.config/endnote-mcp/config.yaml or equivalent)
-        4. Legacy config.yaml next to pyproject.toml
+        2. CHATGPT_ENDNOTE_MCP_CONFIG environment variable
+        3. Independent platform config directory (never the Claude configuration)
         """
         if path is None:
-            path = os.environ.get("ENDNOTE_MCP_CONFIG")
+            path = os.environ.get("CHATGPT_ENDNOTE_MCP_CONFIG")
 
         if path is None:
             default = get_default_config_path()
             if default.exists():
                 path = default
-            elif _LEGACY_CONFIG_PATH.exists():
-                path = _LEGACY_CONFIG_PATH
             else:
                 raise FileNotFoundError(
                     f"No configuration found.\n"
-                    f"Run 'endnote-mcp setup' to configure your library."
+                    f"Run 'chatgpt-endnote-mcp setup' to configure your library."
                 )
 
         path = Path(path).expanduser().resolve()
@@ -66,11 +78,16 @@ class Config:
         if not path.exists():
             raise FileNotFoundError(
                 f"Config file not found: {path}\n"
-                "Run 'endnote-mcp setup' to configure your library."
+                "Run 'chatgpt-endnote-mcp setup' to configure your library."
             )
 
         with open(path) as f:
             raw = yaml.safe_load(f)
+
+        if not isinstance(raw, dict) or not raw.get("endnote_xml") or not raw.get("pdf_dir"):
+            raise ValueError("Configuration must contain endnote_xml and pdf_dir paths.")
+        if int(raw.get("max_pdf_pages", 30)) < 1:
+            raise ValueError("max_pdf_pages must be a positive integer (desktop reads are capped at 30).")
 
         endnote_xml = Path(raw["endnote_xml"]).expanduser().resolve()
         pdf_dir = Path(raw["pdf_dir"]).expanduser().resolve()
@@ -79,11 +96,18 @@ class Config:
         if db_path_raw:
             db_path = Path(db_path_raw).expanduser().resolve()
         else:
-            db_path = get_config_dir() / "library.db"
+            db_path = path.parent / "library.db"
 
         return cls(
             endnote_xml=endnote_xml,
             pdf_dir=pdf_dir,
             db_path=db_path,
             max_pdf_pages=int(raw.get("max_pdf_pages", 30)),
+            companion_host=str(raw.get("companion_host", "127.0.0.1")),
+            companion_port=int(raw.get("companion_port", 8765)),
+            companion_token=raw.get("companion_token"),
+            chatgpt_local_host=str(raw.get("chatgpt_local_host", "127.0.0.1")),
+            chatgpt_local_port=int(raw.get("chatgpt_local_port", 8787)),
+            chatgpt_local_token=raw.get("chatgpt_local_token"),
+            request_timeout_seconds=int(raw.get("request_timeout_seconds", 30)),
         )

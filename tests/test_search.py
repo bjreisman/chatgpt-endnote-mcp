@@ -162,3 +162,25 @@ def test_parse_authors_short_empty():
 
 def test_parse_authors_short_none():
     assert _parse_authors_short("") == "Unknown"
+
+
+def test_literal_punctuation_phrases_and_boolean_operators(populated_db):
+    from endnote_mcp.db import insert_pdf_page
+    conn = populated_db
+    conn.execute("UPDATE references_ SET title='Alternative oxidase bypass', abstract='BAX/BAK and DRP-1 control transport' WHERE rec_number=1")
+    insert_pdf_page(conn, 1, 3, 'Alternative oxidase bypass; BAX/BAK and DRP-1 control transport')
+    conn.execute("UPDATE references_ SET title='Alternative unrelated oxidase' WHERE rec_number=2")
+    for method in (search_references, search_fulltext):
+        assert [r['rec_number'] for r in method(conn, '"alternative oxidase"')] == [1]
+        assert [r['rec_number'] for r in method(conn, 'BAX/BAK')] == [1]
+        assert [r['rec_number'] for r in method(conn, 'DRP-1')] == [1]
+        assert [r['rec_number'] for r in method(conn, 'AOX OR "alternative oxidase"')] == [1]
+        assert [r['rec_number'] for r in method(conn, 'BAX/BAK AND DRP-1 NOT missing')] == [1]
+
+
+def test_malformed_search_query_is_value_error(populated_db):
+    import pytest
+    for query in ('"unclosed phrase', 'AOX OR', 'OR AOX', 'AOX AND OR BAK', '""'):
+        for method in (search_references, search_fulltext):
+            with pytest.raises(ValueError):
+                method(populated_db, query)
