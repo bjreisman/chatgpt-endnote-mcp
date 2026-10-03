@@ -103,7 +103,7 @@ After adding or changing references, re-export XML to the configured path, then 
 
 > Index my EndNote library.
 
-Indexing is incremental and processes changed records and PDFs. Ask “Rebuild my library index” for a full rebuild, “Index metadata only” to skip PDFs, or “Index my library and refresh semantic embeddings” for embedding preparation. Ordinary indexing does not automatically prepare embeddings. Synchronizing removals requires an explicit request and confirmation that the export is complete.
+Indexing, reindexing, and refreshing are incremental: they process changed records and PDFs while reusing unchanged PDF text. If you ask “Rebuild my library index”, the skill explains that a full rebuild re-extracts every PDF and discards existing semantic embeddings, then asks you to choose an incremental reindex or confirm a full rebuild before starting. Ask “Index metadata only” to skip PDFs, or “Index my library and refresh semantic embeddings” for embedding preparation. Ordinary indexing does not automatically prepare embeddings. Synchronizing removals requires an explicit request and confirmation that the export is complete.
 
 ## Update the plugin and runtime
 
