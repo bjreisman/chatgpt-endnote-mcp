@@ -82,3 +82,27 @@ def test_blob_to_array():
 
 def test_has_embeddings_empty(db_conn):
     assert has_embeddings(db_conn) is False
+
+
+def test_semantic_filters_before_ranking_and_single_vector(populated_db):
+    from endnote_mcp.db import upsert_embedding
+    from endnote_mcp.embeddings import search_semantic
+    for n, values in ((1, [1.0, 0.0]), (2, [0.8, 0.6]), (5, [0.6, 0.8])):
+        upsert_embedding(populated_db, n, _make_embedding(values), 'all-MiniLM-L6-v2')
+    # The highest scoring unfiltered hit is excluded before taking top one.
+    result = search_semantic(populated_db, _make_embedding([1.0, 0.0]), year_from='2020', limit=1)
+    assert [r['rec_number'] for r in result] == [5]
+    result = search_semantic(populated_db, _make_embedding([1.0, 0.0]), limit=1, offset=1)
+    assert [r['rec_number'] for r in result] == [2]
+
+
+def test_model_loading_is_offline_by_default(monkeypatch):
+    import sys
+    import types
+    from endnote_mcp import embeddings
+    calls = []
+    monkeypatch.setitem(sys.modules, 'sentence_transformers', types.SimpleNamespace(
+        SentenceTransformer=lambda *args, **kw: calls.append(kw) or object()))
+    monkeypatch.setattr(embeddings, '_model', None)
+    embeddings.load_model()
+    assert calls == [{'local_files_only': True}]

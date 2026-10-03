@@ -39,7 +39,7 @@ def _timeout_handler(signum, frame):
 logger = logging.getLogger(__name__)
 
 # Cached filename → path mapping (built once per pdf_dir)
-_pdf_cache: dict[str, Path] = {}
+_pdf_cache: dict[str, list[Path]] = {}
 _pdf_cache_dir: Path | None = None
 
 
@@ -51,16 +51,16 @@ def _build_pdf_cache(pdf_dir: Path) -> None:
     logger.info("Building PDF file cache for %s...", pdf_dir)
     _pdf_cache = {}
     for path in pdf_dir.rglob("*.[pP][dD][fF]"):
-        _pdf_cache[path.name] = path
+        _pdf_cache.setdefault(path.name, []).append(path)
         # Also index URL-decoded name
         decoded = unquote(path.name)
         if decoded != path.name:
-            _pdf_cache[decoded] = path
+            _pdf_cache.setdefault(decoded, []).append(path)
     _pdf_cache_dir = pdf_dir
     logger.info("Cached %d PDF files.", len(_pdf_cache))
 
 
-def extract_pages(pdf_path: str | Path, timeout: int = 30) -> list[tuple[int, str]]:
+def extract_pages(pdf_path: str | Path, timeout: int = 30, *, strict: bool = False) -> list[tuple[int, str]]:
     """Extract (page_number, text) for each page in a PDF.
 
     Page numbers are 1-based to match human-readable page references.
@@ -74,7 +74,7 @@ def extract_pages(pdf_path: str | Path, timeout: int = 30) -> list[tuple[int, st
     try:
         old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
         signal.alarm(timeout)
-    except (OSError, AttributeError):
+    except (OSError, AttributeError, ValueError):
         pass  # Windows or signal not available
 
     try:
@@ -82,9 +82,19 @@ def extract_pages(pdf_path: str | Path, timeout: int = 30) -> list[tuple[int, st
             doc = fitz.open(str(pdf_path))
     except _PdfTimeout:
         logger.warning("Timeout opening PDF %s", pdf_path.name)
+        if old_handler is not None:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+        if strict:
+            raise
         return []
     except Exception as e:
         logger.warning("Failed to open PDF %s: %s", pdf_path.name, e)
+        if old_handler is not None:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+        if strict:
+            raise
         return []
 
     results = []
@@ -97,6 +107,8 @@ def extract_pages(pdf_path: str | Path, timeout: int = 30) -> list[tuple[int, st
                     results.append((page_idx + 1, text.strip()))
     except _PdfTimeout:
         logger.warning("Timeout extracting PDF %s (got %d pages before timeout)", pdf_path.name, len(results))
+        if strict:
+            raise
     finally:
         doc.close()
         # Cancel alarm and restore handler
@@ -104,7 +116,7 @@ def extract_pages(pdf_path: str | Path, timeout: int = 30) -> list[tuple[int, st
             signal.alarm(0)
             if old_handler is not None:
                 signal.signal(signal.SIGALRM, old_handler)
-        except (OSError, AttributeError):
+        except (OSError, AttributeError, ValueError):
             pass
 
     return results
@@ -144,32 +156,50 @@ def read_pages(pdf_path: str | Path, start: int, end: int) -> list[dict]:
 
 
 def find_pdf(pdf_dir: Path, pdf_filename: str) -> Path | None:
-    """Locate a PDF file in the pdf_dir using a cached lookup.
+    """Resolve exact relative paths first, then only a unique basename.
 
-    On first call, scans the entire pdf_dir once and caches all PDF paths.
-    Subsequent lookups are O(1) dict lookups instead of recursive searches.
+    Invalid paths and symlinks outside the configured root never resolve.
     """
     if not pdf_filename:
         return None
-
-    # Direct path (fastest)
-    direct = pdf_dir / pdf_filename
+    root = Path(pdf_dir).resolve()
+    relative = Path(unquote(pdf_filename))
+    if relative.is_absolute() or ".." in relative.parts or "\\" in str(relative):
+        return None
+    direct = root / relative
     if direct.exists():
-        return direct
+        resolved = direct.resolve()
+        return resolved if resolved.is_relative_to(root) and resolved.is_file() else None
+    _build_pdf_cache(root)
+    candidates = set()
+    for path in _pdf_cache.get(relative.name, []):
+        resolved = path.resolve()
+        if resolved.is_relative_to(root) and resolved.is_file():
+            candidates.add(resolved)
+    return next(iter(candidates)) if len(candidates) == 1 else None
 
-    # Build cache on first use
-    _build_pdf_cache(pdf_dir)
 
-    # Lookup by filename
-    result = _pdf_cache.get(pdf_filename)
-    if result:
-        return result
+def fingerprint_file(path: str | Path) -> str:
+    """Hash file content so changed PDFs invalidate cached evidence."""
+    import hashlib
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    # Try URL-decoded name
-    decoded = unquote(pdf_filename)
-    if decoded != pdf_filename:
-        result = _pdf_cache.get(decoded)
-        if result:
-            return result
 
-    return None
+def extract_pages_checked(pdf_path: str | Path, timeout: int = 30) -> tuple[list[tuple[int, str]], str, str]:
+    """Return pages, extraction status and diagnostic without partial success."""
+    path = Path(pdf_path)
+    if path.stat().st_size > 200 * 1024 * 1024:
+        return [], "failed", "PDF exceeds 200 MB extraction limit"
+    # Opening separately distinguishes corrupt PDFs from successfully read blank PDFs.
+    try:
+        with fitz.open(str(path)) as doc:
+            if doc.needs_pass:
+                return [], "failed", "PDF requires a password"
+        pages = extract_pages(path, timeout=timeout, strict=True)
+    except Exception as exc:
+        return [], "failed", str(exc)
+    return pages, "indexed" if pages else "textless", ""

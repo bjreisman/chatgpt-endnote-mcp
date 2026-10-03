@@ -47,7 +47,7 @@ def test_parse_pdf_filename(sample_xml):
     # Record 2: no PDF URL
     assert records[1]["pdf_path"] == ""
     # Record 3: internal-pdf://0123456789/davis2021.pdf (subdirectory)
-    assert records[2]["pdf_path"] == "davis2021.pdf"
+    assert records[2]["pdf_path"] == "0123456789/davis2021.pdf"
 
 
 def test_parse_book_fields(sample_xml):

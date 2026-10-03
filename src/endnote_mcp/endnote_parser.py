@@ -49,16 +49,21 @@ def _find_all_text(record: etree._Element, xpath: str) -> list[str]:
     return [_text(el) for el in record.findall(xpath) if _text(el)]
 
 
+def _extract_attachments(record: etree._Element) -> list[str]:
+    """Preserve every EndNote attachment path, including nested directories."""
+    paths = []
+    for el in record.findall(".//urls/pdf-urls/url"):
+        value = _text(el)
+        if value.startswith("internal-pdf://"):
+            value = value[len("internal-pdf://"):]
+            if value and value not in paths:
+                paths.append(value)
+    return paths
+
+
 def _extract_pdf_filename(record: etree._Element) -> str:
-    """Extract the PDF filename from internal-pdf:// URLs."""
-    for url_el in record.findall(".//urls/pdf-urls/url"):
-        url_text = _text(url_el)
-        if url_text.startswith("internal-pdf://"):
-            # internal-pdf://filename.pdf or internal-pdf://0123456789/filename.pdf
-            path_part = url_text.replace("internal-pdf://", "")
-            # Return the last component (the actual filename)
-            return path_part.split("/")[-1]
-    return ""
+    paths = _extract_attachments(record)
+    return paths[0] if paths else ""
 
 
 def parse_endnote_xml(xml_path: str | Path) -> Generator[dict, None, None]:
@@ -68,19 +73,17 @@ def parse_endnote_xml(xml_path: str | Path) -> Generator[dict, None, None]:
     Uses iterparse for constant memory usage regardless of file size.
     """
     xml_path = Path(xml_path)
-    context = etree.iterparse(str(xml_path), events=("end",), tag="record")
+    context = etree.iterparse(str(xml_path), events=("end",), tag="record", resolve_entities=False, no_network=True)
 
     for _event, record in context:
         rec_number_text = _find_text(record, "rec-number")
         if not rec_number_text:
-            record.clear()
-            continue
+            raise ValueError("EndNote record is missing a valid rec-number")
 
         try:
             rec_number = int(rec_number_text)
         except ValueError:
-            record.clear()
-            continue
+            raise ValueError("EndNote record is missing a valid rec-number")
 
         # Reference type
         ref_type_el = record.find("ref-type")
@@ -93,7 +96,8 @@ def parse_endnote_xml(xml_path: str | Path) -> Generator[dict, None, None]:
         keywords = _find_all_text(record, ".//keywords/keyword")
 
         # PDF filename
-        pdf_filename = _extract_pdf_filename(record)
+        attachments = _extract_attachments(record)
+        pdf_filename = attachments[0] if attachments else ""
 
         ref = {
             "rec_number": rec_number,
@@ -116,6 +120,8 @@ def parse_endnote_xml(xml_path: str | Path) -> Generator[dict, None, None]:
             "label": _find_text(record, ".//label"),
             "notes": _find_text(record, ".//notes"),
             "pdf_path": pdf_filename,
+            "attachments": attachments,
+            "research_notes": _find_text(record, ".//research-notes"),
         }
 
         yield ref
@@ -124,3 +130,6 @@ def parse_endnote_xml(xml_path: str | Path) -> Generator[dict, None, None]:
         record.clear()
         while record.getprevious() is not None:
             del record.getparent()[0]
+
+    if context.root.tag != "xml" or context.root.find("records") is None:
+        raise ValueError("Expected a complete EndNote <xml><records> export")

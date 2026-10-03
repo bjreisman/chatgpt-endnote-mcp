@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml>
+  <records>
+    <record>
+      <rec-number>900001</rec-number>
+      <label>EXAMPLE-001</label>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors><authors><author>Example, Ada</author></authors></contributors>
+      <titles><title>Synthetic Example of Alternative Oxidase Research</title></titles>
+      <dates><year>2024</year></dates>
+      <abstract>Fabricated fixture record for parser and setup examples. This is not a real publication.</abstract>
+      <research-notes>Fabricated personal research note for tests only.</research-notes>
+    </record>
+    <record>
+      <rec-number>900002</rec-number>
+      <label>EXAMPLE-002</label>
+      <ref-type name="Journal Article">17</ref-type>
+      <contributors><authors><author>Sample, Bea</author></authors></contributors>
+      <titles><title>Fabricated BAX and BAK Mitochondrial Dynamics Citation</title></titles>
+      <dates><year>2025</year></dates>
+      <abstract>Second synthetic fixture; no scientific claim is made.</abstract>
+    </record>
+  </records>
+</xml>

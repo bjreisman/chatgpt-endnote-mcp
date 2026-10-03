@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.bjreisman/chatgpt-endnote-mcp",
-  "description": "Transitional metadata for the ChatGPT-oriented fork of endnote-mcp while the remote app plus local bridge architecture is developed",
+  "description": "Local read-only EndNote MCP server for Codex desktop over stdio",
   "repository": {
     "url": "https://github.com/bjreisman/chatgpt-endnote-mcp",
     "source": "github"
   },
-  "version": "1.0.1",
+  "version": "1.4.5",
   "packages": [
     {
       "registryType": "pypi",
-      "identifier": "endnote-mcp",
-      "version": "1.0.1",
+      "identifier": "chatgpt-endnote-mcp",
+      "version": "1.4.5",
       "transport": {
         "type": "stdio"
       }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from collections import OrderedDict
 from typing import Any
@@ -17,6 +18,7 @@ def search_references(
     author: str | None = None,
     ref_type: str | None = None,
     limit: int = 50,
+    offset: int = 0,
 ) -> list[dict]:
     """Search reference metadata using FTS5 with BM25 ranking.
 
@@ -27,7 +29,7 @@ def search_references(
         return []
 
     # Build the FTS query - escape double quotes in user input
-    fts_query = query.replace('"', '""')
+    fts_query = normalize_fts_query(query)
 
     sql = """
         SELECT
@@ -59,8 +61,8 @@ def search_references(
         sql += " AND r.ref_type LIKE ?"
         params.append(f"%{ref_type}%")
 
-    sql += " ORDER BY rank LIMIT ?"
-    params.append(limit)
+    sql += " ORDER BY rank LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
 
     rows = conn.execute(sql, params).fetchall()
     return [_row_to_ref_summary(row) for row in rows]
@@ -72,6 +74,7 @@ def search_fulltext(
     *,
     limit: int = 50,
     max_snippets_per_ref: int = 3,
+    year_from=None, year_to=None, author=None, ref_type=None, offset: int = 0,
 ) -> list[dict]:
     """Search inside PDF content using FTS5 with BM25 ranking.
 
@@ -81,12 +84,15 @@ def search_fulltext(
     if not query.strip():
         return []
 
-    fts_query = query.replace('"', '""')
+    fts_query = normalize_fts_query(query)
 
     # Fetch a generous pool of raw matches, then group by reference
-    inner_limit = max(limit * 10, 200)
-    sql = """
+    clause, params = filter_sql(year_from, year_to, author, ref_type)
+    has_attachment = "attachment_id" in {r[1] for r in conn.execute("PRAGMA table_info(pdf_pages)")}
+    attachment_column = "pp.attachment_id" if has_attachment else "NULL"
+    sql = f"""
         SELECT
+            {attachment_column} AS attachment_id,
             pp.rec_number,
             pp.page_number,
             r.title,
@@ -100,11 +106,10 @@ def search_fulltext(
         FROM pdf_fts
         JOIN pdf_pages pp ON pp.id = pdf_fts.rowid
         JOIN references_ r ON r.rec_number = pp.rec_number
-        WHERE pdf_fts MATCH ?
+        WHERE pdf_fts MATCH ? {clause}
         ORDER BY rank
-        LIMIT ?
     """
-    rows = conn.execute(sql, [fts_query, inner_limit]).fetchall()
+    rows = conn.execute(sql, [fts_query, *params]).fetchall()
 
     # Group by rec_number, keeping per-ref snippet order (best rank first)
     grouped: OrderedDict[int, dict] = OrderedDict()
@@ -126,11 +131,13 @@ def search_fulltext(
         if len(grouped[rn]["snippets"]) < max_snippets_per_ref:
             grouped[rn]["snippets"].append({
                 "page": row["page_number"],
+                "attachment_id": row["attachment_id"],
+                "evidence_type": "pdf_text",
                 "snippet": row["snippet"],
             })
 
     # Return up to `limit` unique references
-    return list(grouped.values())[:limit]
+    return list(grouped.values())[offset:offset + limit]
 
 
 def get_reference_details(conn: sqlite3.Connection, rec_number: int) -> dict | None:
@@ -162,12 +169,13 @@ def list_by_topic(
     year_to: str | None = None,
     ref_type: str | None = None,
     limit: int = 50,
+    offset: int = 0,
 ) -> list[dict]:
     """List references matching a broad topic across keywords, title, abstract."""
     if not topic.strip():
         return []
 
-    fts_query = topic.replace('"', '""')
+    fts_query = normalize_fts_query(topic)
 
     sql = """
         SELECT
@@ -196,8 +204,8 @@ def list_by_topic(
         sql += " AND r.ref_type LIKE ?"
         params.append(f"%{ref_type}%")
 
-    sql += " ORDER BY rank LIMIT ?"
-    params.append(limit)
+    sql += " ORDER BY rank LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
 
     rows = conn.execute(sql, params).fetchall()
     return [_row_to_ref_summary(row) for row in rows]
@@ -212,6 +220,7 @@ def search_library(
     author: str | None = None,
     ref_type: str | None = None,
     limit: int = 30,
+    offset: int = 0,
 ) -> list[dict]:
     """Combined search across metadata, PDF content, and semantic similarity.
 
@@ -221,16 +230,16 @@ def search_library(
     """
     meta_results = search_references(
         conn, query, year_from=year_from, year_to=year_to, author=author,
-        ref_type=ref_type, limit=limit,
+        ref_type=ref_type, limit=limit + offset,
     )
-    ft_results = search_fulltext(conn, query, limit=limit)
+    ft_results = search_fulltext(conn, query, limit=limit + offset, year_from=year_from, year_to=year_to, author=author, ref_type=ref_type)
 
     # Try semantic search if available
     sem_by_rn: dict[int, dict] = {}
     try:
         from endnote_mcp import embeddings
         if embeddings.is_available() and embeddings.has_embeddings(conn):
-            sem_results = search_semantic(conn, query, limit=limit)
+            sem_results = search_semantic(conn, query, limit=limit + offset, year_from=year_from, year_to=year_to, author=author, ref_type=ref_type)
             sem_by_rn = {r["rec_number"]: r for r in sem_results}
     except Exception:
         pass
@@ -275,7 +284,7 @@ def search_library(
     for r in merged:
         r.pop("_score", None)
 
-    return merged[:limit]
+    return merged[offset:offset + limit]
 
 
 def _row_to_ref_summary(row: sqlite3.Row) -> dict:
@@ -315,6 +324,7 @@ def search_semantic(
     query: str,
     *,
     limit: int = 20,
+    year_from=None, year_to=None, author=None, ref_type=None, offset: int = 0,
 ) -> list[dict]:
     """Search references by semantic similarity using embeddings.
 
@@ -328,7 +338,7 @@ def search_semantic(
 
     model = embeddings.load_model()
     query_emb = embeddings.encode_text(model, query)
-    return embeddings.search_semantic(conn, query_emb, limit=limit)
+    return embeddings.search_semantic(conn, query_emb, limit=limit, offset=offset, year_from=year_from, year_to=year_to, author=author, ref_type=ref_type)
 
 
 def find_related(
@@ -426,7 +436,7 @@ def _find_related_fts(
         ORDER BY rank
         LIMIT ?
     """
-    rows = conn.execute(sql, [fts_query, rec_number, limit]).fetchall()
+    rows = conn.execute(sql, [normalize_fts_query(fts_query), rec_number, limit]).fetchall()
     return [_row_to_ref_summary(row) for row in rows]
 
 
@@ -465,3 +475,52 @@ def _parse_json_list(val: str) -> list[str]:
         return json.loads(val) if val else []
     except (json.JSONDecodeError, TypeError):
         return []
+
+
+def filter_sql(year_from=None, year_to=None, author=None, ref_type=None):
+    """Shared filters, always applied before ranking and pagination."""
+    clauses, params = [], []
+    for value, op in ((year_from, ">="), (year_to, "<=")):
+        if value is not None:
+            clauses.append(f"CAST(r.year AS INTEGER) {op} ?")
+            params.append(int(value))
+    for column, value in (("authors", author), ("ref_type", ref_type)):
+        if value:
+            clauses.append(f"r.{column} LIKE ?")
+            params.append(f"%{value}%")
+    return (" AND " + " AND ".join(clauses) if clauses else ""), params
+
+
+def normalize_fts_query(query: str) -> str:
+    """Quote literal terms safely while retaining uppercase boolean operators.
+
+    Spaces imply AND, quoted text is a phrase, and uppercase AND/OR/NOT
+    operate between terms. Punctuation in literal terms (BAX/BAK, DRP-1)
+    follows SQLite's normal tokenizer rather than becoming FTS syntax.
+    """
+    if not isinstance(query, str):
+        raise ValueError("Search query must be text.")
+    if not query.strip():
+        return ""
+    tokens = []
+    position = 0
+    token_pattern = re.compile(r'"(?:""|[^"])*"|[^\s"]+')
+    for match in token_pattern.finditer(query):
+        if query[position:match.start()].strip():
+            raise ValueError('Malformed search query: close every quoted phrase.')
+        token = match.group()
+        position = match.end()
+        if token in ('AND', 'OR', 'NOT'):
+            if not tokens or tokens[-1] in ('AND', 'OR', 'NOT'):
+                raise ValueError('Search operators must appear between terms or quoted phrases.')
+            tokens.append(token)
+            continue
+        literal = token[1:-1].replace('""', '"') if token.startswith('"') else token
+        if not re.search(r'\w', literal, flags=re.UNICODE):
+            raise ValueError('Search terms or quoted phrases must contain letters or numbers.')
+        tokens.append('"' + literal.replace('"', '""') + '"')
+    if query[position:].strip():
+        raise ValueError('Malformed search query: close every quoted phrase.')
+    if not tokens or tokens[-1] in ('AND', 'OR', 'NOT'):
+        raise ValueError('Search operators must appear between terms or quoted phrases.')
+    return ' '.join(tokens)

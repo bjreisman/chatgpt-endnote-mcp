@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "endnote": {
+      "command": "sh",
+      "args": ["./scripts/launch-desktop.sh"],
+      "cwd": "."
+    }
+  }
+}

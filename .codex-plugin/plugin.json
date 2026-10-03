@@ -1,0 +1,7 @@
+{
+  "name": "endnote-research",
+  "version": "1.4.5",
+  "description": "Search a local EndNote library from Codex desktop",
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/"
+}

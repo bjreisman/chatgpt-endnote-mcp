@@ -1,7 +1,7 @@
 [project]
-name = "endnote-mcp"
+name = "chatgpt-endnote-mcp"
 version = "1.4.5"
-description = "ChatGPT-oriented fork of endnote-mcp that preserves the EndNote search and citation core while the remote app plus local bridge architecture is developed"
+description = "Local read-only EndNote MCP server for Codex desktop"
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"
 readme = "README.md"
@@ -9,7 +9,7 @@ authors = [
     { name = "Gokhan Gokmen" },
 ]
 keywords = [
-    "endnote", "mcp", "claude", "references", "citation",
+    "endnote", "mcp", "codex", "references", "citation",
     "academic", "research", "literature", "pdf", "bibliography",
 ]
 classifiers = [
@@ -26,20 +26,18 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    "mcp[cli]>=1.0.0",
+    "mcp[cli]>=1.12,<2",
     "lxml>=5.0",
     "PyMuPDF>=1.24",
     "pyyaml>=6.0",
     "click>=8.0",
     "rich>=13.0",
-    "openai>=2.0.0",
-    "starlette>=0.40.0",
-    "uvicorn>=0.30.0",
 ]
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=2.2.0", "sqlite-vec>=0.1.0"]
-dev = ["pytest>=8.0", "numpy>=1.26"]
+experimental = ["openai>=2.0.0", "starlette>=0.40.0", "uvicorn>=0.30.0"]
+dev = ["hatchling>=1.26", "pytest>=8.0", "numpy>=1.26", "tomli>=2; python_version < '3.11'"]
 
 [project.urls]
 Homepage = "https://github.com/bjreisman/chatgpt-endnote-mcp"
@@ -52,4 +50,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.scripts]
-endnote-mcp = "endnote_mcp.cli:main"
+chatgpt-endnote-mcp = "endnote_mcp.desktop_cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/endnote_mcp"]
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src", "tests", "scripts", "examples", "skills", "README.md", "LICENSE", "CITATION.cff", "pyproject.toml", "plugin.json", "mcp.json", ".mcp.json", ".codex-plugin", ".claude-plugin", ".github"]
