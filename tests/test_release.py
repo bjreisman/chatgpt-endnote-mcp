@@ -1,4 +1,6 @@
 import json
+import os
+import pytest
 from pathlib import Path
 
 try:
@@ -45,6 +47,7 @@ def test_examples_are_marked_fabricated():
     assert "Fabricated fixture" in xml
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Unix launcher; native equivalent in test_windows.py')
 def test_launcher_executes_override_and_preserves_arguments_with_spaces(tmp_path):
     import os
     import subprocess
@@ -60,6 +63,7 @@ def test_launcher_executes_override_and_preserves_arguments_with_spaces(tmp_path
     assert capture.read_text().splitlines() == ["serve-desktop", "--config", str(config)]
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Unix launcher; packaged native equivalent in test_windows.py')
 def test_copied_plugin_launches_real_stdio_server(tmp_path):
     import asyncio
     import os

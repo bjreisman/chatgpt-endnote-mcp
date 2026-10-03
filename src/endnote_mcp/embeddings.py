@@ -25,7 +25,7 @@ def is_available() -> bool:
         import numpy  # noqa: F401
         import sentence_transformers  # noqa: F401
         return True
-    except ImportError:
+    except (ImportError, OSError):
         return False
 
 

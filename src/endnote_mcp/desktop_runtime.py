@@ -10,6 +10,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+from endnote_mcp.locking import IndexBusyError
 from endnote_mcp.config import Config
 from endnote_mcp import db, search, embeddings
 from endnote_mcp.citation import format_citation, format_bibtex
@@ -36,6 +37,8 @@ class DesktopRuntime:
             return self._error('unknown_tool', 'Unknown desktop tool.')
         try:
             return getattr(self, tool_name)(**(arguments or {}))
+        except IndexBusyError as exc:
+            return self._error('index_busy', str(exc))
         except (FileNotFoundError, sqlite3.Error, db.IncompatibleIndexError) as exc:
             return self._error('index_unavailable', f'{exc}. Run chatgpt-endnote-mcp index locally.')
         except (ValueError, TypeError) as exc:

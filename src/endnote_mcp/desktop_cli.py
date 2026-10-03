@@ -15,6 +15,20 @@ import click
 import yaml
 
 from endnote_mcp.config import Config, get_default_config_path
+from endnote_mcp.locking import publish_database
+
+
+def shell_command(arguments):
+    """Render copyable commands for the user's native shell."""
+    if os.name == 'nt':
+        def quote(value):
+            value = str(value)
+            if value and all(c.isalnum() or c in '-_.' for c in value):
+                return value
+            return "'" + value.replace("'", "''") + "'"
+        prefix = '& ' if any(c in str(arguments[0]) for c in ' \\/:') else ''
+        return prefix + ' '.join(quote(a) for a in arguments)
+    return shlex.join([str(a) for a in arguments])
 
 
 def _config_path(value=None):
@@ -57,7 +71,7 @@ def setup(xml_path, pdf_dir, config, import_config, force):
         raise click.ClickException("Choose a destination directory separate from the imported index.")
     target.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     target.chmod(0o600)
-    click.echo(f"Saved {target}\nNext: chatgpt-endnote-mcp index --config {shlex.quote(str(target))}")
+    click.echo(f"Saved {target}\nNext: {shell_command(['chatgpt-endnote-mcp', 'index', '--config', str(target)])}")
 
 
 @cli.command()
@@ -117,7 +131,7 @@ def _embed(config, full=False):
             conn.execute("PRAGMA journal_mode=DELETE")
             conn.close()
             conn = None
-            os.replace(stage, cfg.db_path)
+            publish_database(stage, cfg.db_path)
             click.echo(f"Embedded {len(rows)} references.")
         finally:
             if conn is not None:
@@ -168,7 +182,7 @@ def doctor(config):
     executable = shutil.which("chatgpt-endnote-mcp")
     command = [str(Path(executable).absolute()), "serve-desktop"] if executable else [sys.executable, "-m", "endnote_mcp.desktop_cli", "serve-desktop"]
     command += ["--config", str(path)]
-    report["registration_command"] = shlex.join(["codex", "mcp", "add", "endnote", "--", *command])
+    report["registration_command"] = shell_command(["codex", "mcp", "add", "endnote", "--", *command])
     report["ready"] = report["xml_exists"] and report["pdf_directory_exists"] and "index_error" not in report
     click.echo(json.dumps(report, indent=2))
     if not report["ready"]:

@@ -10,7 +10,7 @@ authors:
     given-names: Gokhan
     orcid: "https://orcid.org/0000-0001-8883-1770"
   - name: ChatGPT EndNote MCP contributors
-version: 1.4.6
+version: 1.4.7
 url: "https://github.com/bjreisman/chatgpt-endnote-mcp"
 repository-code: "https://github.com/bjreisman/chatgpt-endnote-mcp"
 license: AGPL-3.0-or-later

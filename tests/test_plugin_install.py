@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import pytest
 
 ROOT = Path(__file__).parents[1]
 
@@ -34,6 +35,7 @@ exit "${TEST_EXIT:-0}"
     return env, log
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Unix installer; native equivalent in test_windows.py')
 def test_installer_uses_plugin_source_and_keeps_flags_explicit(tmp_path):
     import shutil
     root = tmp_path / 'plugin with spaces'
@@ -50,6 +52,7 @@ def test_installer_uses_plugin_source_and_keeps_flags_explicit(tmp_path):
     assert log.read_text().splitlines() == ['tool', 'install', '--force', str(root)+'[semantic]']
 
 
+@pytest.mark.skipif(os.name == 'nt', reason='Unix installer; native equivalent in test_windows.py')
 def test_installer_stops_on_missing_uv_and_install_failure(tmp_path):
     env, log = fake_uv(tmp_path, failure=True)
     result = subprocess.run(['sh', str(ROOT / 'scripts/install-desktop.sh')], env=env,
