@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "EndNote Research",
     "shortDescription": "Search exported libraries",
-    "longDescription": "Independent tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, and optionally use locally prepared semantic embeddings. Requires macOS, uv, and an exported library. Source files and the index stay local; retrieved evidence can enter the active AI conversation. This tool is not affiliated with EndNote or OpenAI.",
+    "longDescription": "Unofficial tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, and optionally use locally prepared semantic embeddings. Requires macOS, uv, and an exported library. Source files and the index stay local; retrieved evidence may be sent to the AI service used by Codex. Local operation does not guarantee privacy or security. Provided as is, without warranty; use at your own risk. This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI.",
     "developerName": "bjreisman",
     "category": "Productivity",
     "capabilities": [
