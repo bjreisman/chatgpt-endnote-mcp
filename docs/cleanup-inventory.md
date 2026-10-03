@@ -67,3 +67,38 @@ The archived original `server.json` comes from `91cb249`. Keep this document aft
 manual deletion. Do not run the runtime suite until the owner deletes the archive
 and resumes testing. A static import/reference and whitespace review is allowed
 at this stage; it does not establish runtime correctness.
+
+Checkpoint created: `895b5e2` (full hash in `archive/manifest.json`).
+Archive moves completed and SHA256-verified; no files deleted. Runtime tests and
+GitHub operations remain pending owner review and manual archive deletion.
+
+## Post-deletion verification — 3 October 2026
+
+The owner manually deleted `archive/` and authorized testing. Verified the folder
+is absent. The checkpoint still preserves the retired source; the ignored
+archived build/Finder artifacts were manually deleted and are not in Git.
+
+- Full active suite: **139 passed**, no exclusions, in 4.79 seconds. Five
+  dependency deprecation warnings came from PyMuPDF/SWIG imports.
+- Real-library doctor: ready; 3,938 references, 65,830 PDF pages and 3,938
+  reference embeddings. Seven existing attachment failures remain; cleanup did
+  not reindex or alter attachments.
+- Real stdio session listed all 11 tools, performed metadata, PDF-text and
+  cached/offline semantic searches, citation formatting and a PDF-page read.
+  Database SHA256 before/after was identical.
+- Wheel and source distribution rebuilt. Inventories exclude retired modules,
+  archive, private local evidence, databases, PDFs, configuration and bytecode.
+  Source package now includes `docs/` to preserve the README inventory link.
+- Rebuilt wheel installed offline into a separate environment inheriting base
+  dependencies from the previous clean-install environment. Imports resolved to
+  its installed wheel, not the source checkout. Synthetic setup and indexing,
+  MCP initialization, search, semantic-unavailability reporting and shutdown
+  passed. This is package validation, not a fresh network dependency resolution.
+- Existing desktop registration was not changed; GUI interaction was not tested.
+- GitHub read-only checks: authenticated as `bjreisman`, admin access to public
+  `bjreisman/chatgpt-endnote-mcp`, default branch `main`. Remote `main` was
+  `c9f5ec5`; remote `codex/chatgpt-bridge-foundation` was `91cb249`. Nothing pushed.
+
+Proposed publication: push `codex/chatgpt-bridge-foundation` to `origin` without
+force, open a pull request into `main`, and review hosted CI before merging.
+GitHub write operations remain pending the owner's next instruction.

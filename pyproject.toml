@@ -36,7 +36,6 @@ dependencies = [
 
 [project.optional-dependencies]
 semantic = ["sentence-transformers>=2.2.0", "sqlite-vec>=0.1.0"]
-experimental = ["openai>=2.0.0", "starlette>=0.40.0", "uvicorn>=0.30.0"]
 dev = ["hatchling>=1.26", "pytest>=8.0", "numpy>=1.26", "tomli>=2; python_version < '3.11'"]
 
 [project.urls]
@@ -56,4 +55,8 @@ chatgpt-endnote-mcp = "endnote_mcp.desktop_cli:main"
 packages = ["src/endnote_mcp"]
 
 [tool.hatch.build.targets.sdist]
-only-include = ["src", "tests", "scripts", "examples", "skills", "README.md", "LICENSE", "CITATION.cff", "pyproject.toml", "plugin.json", "mcp.json", ".mcp.json", ".codex-plugin", ".claude-plugin", ".github"]
+only-include = ["src", "tests", "scripts", "examples", "skills", "docs", "README.md", "LICENSE", "CITATION.cff", "pyproject.toml", "plugin.json", "mcp.json", ".mcp.json", ".codex-plugin", ".claude-plugin", ".github"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["archive", ".git", ".local", ".venv", "build", "dist", "*.egg"]

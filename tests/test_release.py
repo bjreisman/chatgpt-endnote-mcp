@@ -16,7 +16,7 @@ def test_package_installs_the_local_desktop_command_without_experimental_http_de
     assert project["project"]["scripts"]["chatgpt-endnote-mcp"] == "endnote_mcp.desktop_cli:main"
     assert "openai" not in project["project"]["dependencies"]
     assert "uvicorn" not in project["project"]["dependencies"]
-    assert "openai>=2.0.0" in project["project"]["optional-dependencies"]["experimental"]
+    assert "experimental" not in project["project"]["optional-dependencies"]
     assert project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/endnote_mcp"]
 
 

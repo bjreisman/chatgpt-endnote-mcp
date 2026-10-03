@@ -41,3 +41,6 @@ config.yaml
 
 # uv
 uv.lock
+
+# Local retirement archive (review and delete manually)
+/archive/

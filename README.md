@@ -77,12 +77,12 @@ Set `CHATGPT_ENDNOTE_MCP_CONFIG` to use a non-default configuration. The MCP ser
 
 The XML export and PDFs remain at their configured local paths, and the index is a derived local database. When you ask a question, relevant metadata, abstracts, notes, or PDF passages may be included in the conversation sent through Codex's configured model connection. This describes the data flow and is not an IT or institutional approval statement. The server exposes read-only reference search and retrieval; it does not edit EndNote or synchronize with a live library.
 
-The package also retains experimental HTTP/app code for development. Those commands are not started by `serve-desktop`; their exclusive dependencies are in the `experimental` extra. Do not expose the experimental services to a network without separately reviewing their security and privacy behavior.
+The earlier HTTP bridge, tunnel server, web app, and Claude setup CLI have been retired from the active package. See [the cleanup inventory](docs/cleanup-inventory.md) for details.
 
 ## Development
 
 ```sh
-uv sync --extra dev --extra experimental
+uv sync --extra dev
 uv run pytest
 ```
 
