@@ -80,10 +80,20 @@ def test_worker_corrupt_encrypted_blank_and_text(tmp_path):
 
 
 def test_worker_timeout_reaps_process_without_partial_text(tmp_path, monkeypatch):
-    worker = tmp_path / 'slow.py'
-    pid = tmp_path / 'pid'
-    worker.write_text('import os, pathlib, sys, time\npathlib.Path(sys.argv[1]).write_text(str(os.getpid()))\nprint("partial output", flush=True)\ntime.sleep(60)\n', encoding='utf-8')
-    monkeypatch.setattr(pdf_indexer, '_worker_command', lambda path: [sys.executable, str(worker), str(pid)])
+    # Exercise the real worker command, including Windows venv redirection.
+    pid = tmp_path / 'paper.pid'
+    (tmp_path / 'pymupdf.py').write_text('''import os, pathlib, sys, time
+class Diagnostics:
+    def mupdf_display_errors(self, value): pass
+    def mupdf_display_warnings(self, value): pass
+TOOLS = Diagnostics()
+def open(path):
+    pathlib.Path(path).with_suffix('.pid').write_text(str(os.getpid()))
+    print('partial output', flush=True)
+    time.sleep(60)
+''', encoding='utf-8')
+    monkeypatch.syspath_prepend(str(tmp_path))
+    monkeypatch.setenv('PYTHONPATH', str(tmp_path) + os.pathsep + os.environ.get('PYTHONPATH', ''))
     real_popen = subprocess.Popen
     children = []
     def spawn(*args, **kwargs):
@@ -93,13 +103,14 @@ def test_worker_timeout_reaps_process_without_partial_text(tmp_path, monkeypatch
     monkeypatch.setattr(pdf_indexer.subprocess, 'Popen', spawn)
     make_pdf(tmp_path / 'paper.pdf')
     start = time.monotonic()
-    pages, status, error = pdf_indexer.extract_pages_checked(tmp_path / 'paper.pdf', timeout=1)
+    pages, status, error = pdf_indexer.extract_pages_checked(tmp_path / 'paper.pdf', timeout=3)
     assert time.monotonic() - start < 10
     assert (pages, status) == ([], 'failed')
     assert 'timed out' in error
     assert children[0].poll() is not None
     assert pid.exists()
     actual_pid = int(pid.read_text())
+    assert actual_pid == children[0].pid
     if os.name == 'nt':
         import ctypes
         from ctypes import wintypes
@@ -121,9 +132,9 @@ def test_worker_timeout_reaps_process_without_partial_text(tmp_path, monkeypatch
 
 def test_worker_crash_and_interrupt_reap(tmp_path, monkeypatch):
     make_pdf(tmp_path / 'paper.pdf')
-    monkeypatch.setattr(pdf_indexer, '_worker_command', lambda path: [sys.executable, '-c', 'import os; os._exit(7)'])
+    monkeypatch.setattr(pdf_indexer, '_worker_command', lambda path: pdf_indexer._python_command('import os; os._exit(7)'))
     assert pdf_indexer.extract_pages_checked(tmp_path / 'paper.pdf')[1] == 'failed'
-    monkeypatch.setattr(pdf_indexer, '_worker_command', lambda path: [sys.executable, '-c', 'import time; time.sleep(60)'])
+    monkeypatch.setattr(pdf_indexer, '_worker_command', lambda path: pdf_indexer._python_command('import time; time.sleep(60)'))
     real_popen = subprocess.Popen
     children = []
     def spawn(*args, **kwargs):

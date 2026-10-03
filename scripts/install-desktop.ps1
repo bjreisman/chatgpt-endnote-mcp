@@ -18,7 +18,7 @@ try {
             exit 127
         }
     } else {
-        $found = Get-Command uv.exe -CommandType Application -ErrorAction SilentlyContinue
+        $found = Get-Command uv.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($found) { $uvCommand = $found.Source }
         else { $uvCommand = Join-Path $env:USERPROFILE '.local\bin\uv.exe' }
         if (-not (Test-Path -LiteralPath $uvCommand -PathType Leaf)) {

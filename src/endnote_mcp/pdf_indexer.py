@@ -55,7 +55,20 @@ def _build_pdf_cache(pdf_dir: Path) -> None:
     logger.info("Cached %d PDF files.", len(_pdf_cache))
 
 
+def _python_command(code, *arguments):
+    if os.name == 'nt':
+        # Windows venv python.exe may redirect to another process. Killing the
+        # redirector leaves extraction running. Start its actual interpreter
+        # directly and restore the installed runtime's resolved import paths.
+        executable = getattr(sys, '_base_executable', None) or sys.executable
+        bootstrap = 'import json,sys;sys.path[:]=json.loads(sys.argv.pop(1));' + code
+        return [executable, '-c', bootstrap, json.dumps(sys.path), *map(str, arguments)]
+    return [sys.executable, '-c', code, *map(str, arguments)]
+
+
 def _worker_command(path):
+    if os.name == 'nt':
+        return _python_command("import runpy;runpy.run_module('endnote_mcp.pdf_worker',run_name='__main__')", path)
     return [sys.executable, '-m', 'endnote_mcp.pdf_worker', str(path)]
 
 

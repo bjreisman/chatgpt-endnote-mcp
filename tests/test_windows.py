@@ -177,7 +177,10 @@ raise SystemExit(int(os.environ.get('TEST_EXIT', '0')))""")
     assert b'uv executable is unavailable' in result.stderr
     env.pop('CHATGPT_ENDNOTE_MCP_UV')
     env.pop('TEST_EXIT')
-    env['PATH'] = str(directory) + os.pathsep + os.environ['PATH']
+    second_uv = tmp_path / 'second uv'
+    second_uv.mkdir()
+    native_stub(second_uv, 'uv', 'raise SystemExit(88)')
+    env['PATH'] = str(directory) + os.pathsep + str(second_uv) + os.pathsep + os.environ['PATH']
     result = subprocess.run(command, env=env, capture_output=True)
     assert result.returncode == 0, result.stderr
     profile = tmp_path / 'isolated profile'
