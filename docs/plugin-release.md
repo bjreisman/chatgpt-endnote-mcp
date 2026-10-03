@@ -5,6 +5,28 @@ explicit uv runtime installer, and a distributable plugin ZIP. Installation read
 runtime source from the installed plugin copy. Server startup does not install
 software. The default indexing flow is incremental and preserves configuration.
 
+## Completed automated validation
+
+- Full local suite: 145 tests pass. Wheel, source distribution and plugin ZIP build.
+- A separate uv tool environment installed the extracted ZIP source, including a
+  plugin path and library paths containing spaces, with current dependencies.
+- Actual stdio sessions verified metadata/PDF search, citations, PDF page reads,
+  restart, incremental updates and semantic fallback without optional packages.
+  Retrieval left the index unchanged; failed XML import preserved the prior index.
+- Setup preserved existing configuration. Tests cover missing uv/export paths,
+  interrupted indexing and optional semantic dependencies.
+- Codex's plugin reader recognizes both skills, the server and display assets.
+  This is a manifest check, not an installed desktop onboarding check.
+- The ZIP includes source, launcher, installer, both skills and icons, with no
+  personal library, local configuration or database files.
+- GitHub Actions was previously active but had no recorded runs. Manual dispatch
+  and branch triggers now allow verification; the first dispatched matrix passed
+  all eight macOS/Linux and Python 3.10–3.13 jobs.
+
+Fresh dependency testing exposed a PyMuPDF compatibility-alias warning on stdout.
+The runtime now imports `pymupdf` (minimum 1.24.3), and a regression test protects
+the stdio channel. The repeated packaged runtime check had no JSON-RPC parse errors.
+
 ## Desktop acceptance gate
 
 Before publishing a stable release, test with a fresh macOS Codex profile with no

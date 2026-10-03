@@ -7,6 +7,14 @@ import subprocess
 ROOT = Path(__file__).parents[1]
 
 
+def test_pdf_import_keeps_mcp_stdout_clean():
+    import sys
+    result = subprocess.run([sys.executable, '-c', 'import endnote_mcp.pdf_indexer'],
+                            text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == ''
+
+
 def fake_uv(tmp_path, failure=False):
     uv = tmp_path / 'uv executable'
     bins = tmp_path / 'runtime bin'

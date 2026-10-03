@@ -339,7 +339,7 @@ class DesktopRuntime:
                 return self._error('attachment_' + a['status'], a.get('error') or f"Attachment is {a['status']}.", attachment=self._public_attachment(a))
             # Indexed text can omit scanned or blank pages, especially at EOF.
             # Obtain the physical page count from the already-validated attachment.
-            import fitz
+            import pymupdf as fitz
             try:
                 with fitz.open(a['resolved_path']) as document:
                     total = len(document)
