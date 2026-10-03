@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Generator
 from urllib.parse import unquote
 
-import fitz  # PyMuPDF
+import pymupdf as fitz
 
 
 @contextlib.contextmanager

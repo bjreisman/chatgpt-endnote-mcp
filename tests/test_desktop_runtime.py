@@ -14,7 +14,7 @@ def desktop(tmp_path, sample_ref):
     pdf_dir = tmp_path / 'PDF'
     pdf_dir.mkdir()
     pdf = pdf_dir / 'paper.pdf'
-    import fitz
+    import pymupdf as fitz
     with fitz.open() as document:
         for n in range(36):
             page = document.new_page()
