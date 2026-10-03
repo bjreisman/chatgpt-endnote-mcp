@@ -2,16 +2,32 @@
 
 Index and search an exported EndNote library from Codex desktop. The plugin bundles setup and research skills with an MCP server that runs locally over stdio. Search metadata and PDF text, format citations, read PDF pages, and optionally search with locally prepared semantic embeddings.
 
-This is an independent fork of [Gokhan Gokmen's endnote-mcp](https://github.com/gokmengokhan/endnote-mcp), licensed under AGPL-3.0-or-later. It is an unofficial integration, distributed as a local GitHub plugin rather than an approved public-directory listing.
+This is a Codex port and independent fork of [Gokhan Gokmen's original endnote-mcp for Claude Desktop](https://github.com/gokmengokhan/endnote-mcp), licensed under AGPL-3.0-or-later. Thank you to Gokhan for creating the original project and making this work possible. The core idea and many research capabilities come from his project; this fork adapts the installation, local server, and research workflow for Codex. It is an unofficial integration, distributed as a local GitHub plugin rather than an approved public-directory listing.
 
 **Disclaimer:** This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI. The plugin is designed to run locally and keep your exported library files and search index on your computer, without exposing them through a hosted service. However, information retrieved through the plugin may be sent to the AI service used by Codex as part of your conversation. Local operation does not guarantee privacy or security. The software is provided “as is,” without warranty, and you use it at your own risk. You are responsible for protecting your data and ensuring that your use complies with any applicable confidentiality, institutional, or licensing requirements. See [LICENSE](LICENSE) for the full warranty and liability terms.
+
+## What it does
+
+Once your library is indexed, you can ask Codex to search references and attached PDFs, find related papers, format citations and bibliographies, or export BibTeX. For example (adapted from the [original project's examples](https://github.com/gokmengokhan/endnote-mcp#what-it-does)):
+
+- “Search my library for Bourdieu and social capital.”
+- “Find papers on how organizations respond to uncertainty.” (Semantic search requires optional preparation.)
+- “Find references related to record 3844.”
+- “Give me an APA citation for reference 1234.”
+- “Make a bibliography from references 12, 45, 78, and 102.”
+- “Export references 12, 45, and 78 as BibTeX.”
+- “Read pages 5–7 of the Smith paper in my library.”
+
+## How it works
+
+Your EndNote library is exported to XML, then indexed with PDF text in a separate local SQLite database. The Codex plugin connects to that index through a local stdio MCP server. Optional local embeddings add meaning-based search. The server's tools only read the index; setup, indexing, and embedding preparation are explicit local operations.
 
 ## Requirements
 
 - macOS and Codex desktop
 - [Codex CLI](https://developers.openai.com/codex/cli/) with `codex plugin` support, for the Terminal installation steps below
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) for the local Python runtime
-- An XML export from EndNote and its corresponding `.Data/PDF` attachment directory
+- An XML export from EndNote and its PDF attachment directory, usually `<library>.Data/PDF` next to the `.enl` file or `PDF` inside an `.enlp` package
 - Permission to install Python dependencies and read your selected library files
 
 ## Install the plugin and set up your library
@@ -53,14 +69,33 @@ Restart the plugin or start a new chat after setup if its server initially faile
 
 ### 3. Search and cite
 
-Try:
-
-- “Search my EndNote library for alternative oxidase.”
-- “Find papers about mitochondrial fusion and fission.”
-- “Give me the APA citation for reference 42.”
-- “Read pages 2–4 of that paper.”
+Try one of the prompts under [What it does](#what-it-does). Record numbers in those examples are illustrative; use IDs returned by a search of your own library.
 
 The research skill preserves reference IDs, attachment IDs, and physical PDF page numbers. It distinguishes published PDF passages, abstracts, and personal notes. Retrieved text is evidence, never instructions. A missing result means only that it was not found in this library.
+
+## Available research tools
+
+The plugin exposes these 11 read-only MCP tools to Codex:
+
+| Tool | Purpose |
+| --- | --- |
+| `search_references` | Search reference metadata by keyword, with year, author, and type filters |
+| `search_fulltext` | Search indexed PDF text and return page-attributed matches |
+| `search_library` | Combine available metadata, PDF, and semantic results |
+| `search_semantic` | Search by meaning when local embeddings have been prepared |
+| `get_reference_details` | Read full metadata and attachment status for one reference |
+| `get_citation` | Format one reference in APA 7th, Harvard, Vancouver, Chicago, or IEEE style |
+| `get_bibtex` | Return BibTeX entries for selected references |
+| `get_bibliography` | Format a bibliography from selected reference numbers |
+| `find_related` | Find related references in the indexed library |
+| `read_pdf_section` | Read selected physical PDF pages, up to 30 per request |
+| `list_references_by_topic` | Browse matching references by topic |
+
+Unlike the original Claude integration, this server does not expose a `rebuild_index` tool. Ask Codex to index your library or run the local CLI after re-exporting the XML.
+
+### Semantic search (optional)
+
+Semantic search can find related ideas even when the query and reference use different words. Ask Codex to prepare semantic search after setup; it will install the optional dependencies if needed and run `embed`. The first preparation may download a model. Keyword and PDF search work without it, and ordinary indexing does not automatically create new embeddings.
 
 ## Update your library
 
@@ -124,6 +159,19 @@ Default configuration and index: `~/Library/Application Support/chatgpt-endnote-
 The launcher finds the runtime on PATH or at `~/.local/bin/chatgpt-endnote-mcp`; it never installs or downloads software at startup. Plugin files `.codex-plugin/plugin.json`, `.mcp.json`, and `.claude-plugin/marketplace.json` are required configuration; the Claude-named catalog is a supported Codex compatibility convention.
 
 For semantic search, ask the setup skill to install the semantic extra, then prepare embeddings. Manual installation from a checkout is `uv tool install --force '.[semantic]'`; for Git use `uv tool install --force --with sentence-transformers --with sqlite-vec 'git+https://github.com/bjreisman/chatgpt-endnote-mcp.git@v1.4.6'`. The first `embed` may download a model. Serving uses cached files only; keyword/PDF search works without semantic dependencies.
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Codex does not show the plugin or its tools | Run `codex plugin list` in Terminal, confirm `endnote-research` is installed and enabled in Codex desktop, then start a new chat. |
+| The server fails to start or reports no configuration/index | Ask Codex to set up your EndNote library. If the runtime is already installed, run `chatgpt-endnote-mcp doctor` in Terminal to check the configured paths and index. Restart the plugin or start a new chat after setup. |
+| XML or PDF directory is missing | Re-export XML from EndNote and check the selected PDF folder. It is commonly `<library>.Data/PDF` beside the `.enl` file or `PDF` inside an `.enlp` package. Update the saved configuration only if those paths changed. |
+| New references or changed PDFs are missing | Re-export XML to the configured path, then ask Codex to index the library. Check `chatgpt-endnote-mcp status` for index counts. |
+| A PDF cannot be read | Check the attachment status in its reference details. A missing, failed, textless, or changed PDF may need a corrected attachment path or another indexing pass. Scanned image-only PDFs may have no extractable text. |
+| Semantic search is unavailable | Ask Codex to install the optional semantic dependencies and prepare embeddings, or use keyword and PDF search in the meantime. |
+
+For direct registration, `chatgpt-endnote-mcp doctor` also prints the `codex mcp add` command. Do not add that second connection when the plugin's own MCP connection is enabled.
 
 ## Privacy and scope
 
