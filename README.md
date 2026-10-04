@@ -170,7 +170,8 @@ After adding or changing references, re-export XML to the configured path, then 
 
 > Index my EndNote library.
 
-Indexing is incremental and processes changed records and PDFs. Unchanged PDFs
+Indexing, reindexing, and refreshing are incremental: they process changed records
+and PDFs while reusing unchanged PDF text. Unchanged PDFs
 that were successfully indexed or found textless are skipped; failed PDFs are
 retried. The CLI reports `Processed 100 references...`, then 200, 300, and so on.
 Initial indexing can take a while for large libraries. In the 1.4.7 candidate,
@@ -178,9 +179,12 @@ PDF extraction uses a short-lived Python subprocess on every platform to enforce
 deadlines and isolate crashes. Skipped PDFs and research searches do not start
 extraction workers; the worker adds no new runtime dependency.
 
-Ask “Rebuild my library index” for a full rebuild, “Index metadata only” to skip
-PDFs, or “Index my library and refresh semantic embeddings” for embedding
-preparation. Ordinary indexing does not automatically prepare embeddings.
+If you ask “Rebuild my library index”, the skill explains that a full rebuild
+re-extracts every PDF and discards existing semantic embeddings, then asks you to
+choose an incremental reindex or confirm a full rebuild before starting.
+Ask “Index metadata only” to skip PDFs, or “Index my library and refresh semantic
+embeddings” for embedding preparation. Ordinary indexing does not automatically
+prepare embeddings.
 Synchronizing removals requires an explicit request and confirmation that the
 export is complete.
 
