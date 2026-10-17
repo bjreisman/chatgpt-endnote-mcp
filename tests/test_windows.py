@@ -147,7 +147,8 @@ def test_launcher_discovery(tmp_path, location):
 def test_native_installer_flags_failure_and_missing_uv(tmp_path):
     directory = tmp_path / 'native tools Ω'
     directory.mkdir()
-    runtime = native_stub(directory, 'chatgpt-endnote-mcp', 'print("test runtime")')
+    version = json.loads((ROOT / '.codex-plugin/plugin.json').read_text())['version']
+    runtime = native_stub(directory, 'chatgpt-endnote-mcp', f'print("chatgpt-endnote-mcp, version {version}")')
     uv = native_stub(directory, 'uv', """import json, os, pathlib, sys
 if sys.argv[1:] == ['tool', 'dir', '--bin']:
     print(os.environ['TEST_BIN'])
@@ -167,6 +168,7 @@ raise SystemExit(int(os.environ.get('TEST_EXIT', '0')))""")
     result = subprocess.run([*command, '-Semantic', '-Replace'], env=env, capture_output=True)
     assert result.returncode == 0, result.stderr
     assert json.loads(log.read_text(encoding='utf-8')) == ['tool', 'install', '--force', str(plugin) + '[semantic]']
+    assert f'version {version}'.encode() in result.stdout
     env['TEST_EXIT'] = '19'
     result = subprocess.run(command, env=env, capture_output=True)
     assert result.returncode == 19

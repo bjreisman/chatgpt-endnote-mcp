@@ -1,6 +1,6 @@
 [project]
 name = "chatgpt-endnote-mcp"
-version = "1.4.7"
+version = "0.1.0"
 description = "Local read-only EndNote MCP server for Codex desktop"
 requires-python = ">=3.10"
 license = "AGPL-3.0-or-later"

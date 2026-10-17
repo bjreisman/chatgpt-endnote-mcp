@@ -21,7 +21,8 @@ def fake_uv(tmp_path, failure=False):
     bins = tmp_path / 'runtime bin'
     bins.mkdir()
     executable = bins / 'chatgpt-endnote-mcp'
-    executable.write_text('#!/bin/sh\nprintf "%s\\n" "chatgpt-endnote-mcp, version 1.4.6"\n')
+    version = json.loads((ROOT / '.codex-plugin/plugin.json').read_text())['version']
+    executable.write_text(f'#!/bin/sh\nprintf "%s\\n" "chatgpt-endnote-mcp, version {version}"\n')
     executable.chmod(0o755)
     log = tmp_path / 'arguments'
     uv.write_text('''#!/bin/sh
@@ -50,6 +51,8 @@ def test_installer_uses_plugin_source_and_keeps_flags_explicit(tmp_path):
                             text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
     assert log.read_text().splitlines() == ['tool', 'install', '--force', str(root)+'[semantic]']
+    version = json.loads((ROOT / '.codex-plugin/plugin.json').read_text())['version']
+    assert f'version {version}' in result.stdout
 
 
 @pytest.mark.skipif(os.name == 'nt', reason='Unix installer; native equivalent in test_windows.py')
