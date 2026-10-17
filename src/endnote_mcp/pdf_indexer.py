@@ -8,6 +8,7 @@ import os
 import json
 import subprocess
 import sys
+import unicodedata
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from urllib.parse import unquote
 
@@ -36,6 +37,12 @@ _pdf_cache: dict[str, list[Path]] = {}
 _pdf_cache_dir: Path | None = None
 
 
+def _pdf_filename_key(name: str) -> str:
+    """Match canonically equivalent Unicode names, retaining platform casing."""
+    name = unicodedata.normalize('NFC', name)
+    return name.casefold() if os.name == 'nt' else name
+
+
 def _build_pdf_cache(pdf_dir: Path) -> None:
     """Scan pdf_dir once and cache all PDF paths by filename."""
     global _pdf_cache, _pdf_cache_dir
@@ -44,12 +51,10 @@ def _build_pdf_cache(pdf_dir: Path) -> None:
     logger.info("Building PDF file cache for %s...", pdf_dir)
     _pdf_cache = {}
     for path in pdf_dir.rglob("*.[pP][dD][fF]"):
-        key = path.name.casefold() if os.name == 'nt' else path.name
-        _pdf_cache.setdefault(key, []).append(path)
-        # Also index URL-decoded name
-        decoded = unquote(path.name)
-        if decoded != path.name:
-            key = decoded.casefold() if os.name == 'nt' else decoded
+        # EndNote exports and filesystem names can use different Unicode forms.
+        # Keep URL-decoded aliases, without adding the same path twice per key.
+        keys = {_pdf_filename_key(path.name), _pdf_filename_key(unquote(path.name))}
+        for key in keys:
             _pdf_cache.setdefault(key, []).append(path)
     _pdf_cache_dir = pdf_dir
     logger.info("Cached %d PDF files.", len(_pdf_cache))
@@ -154,7 +159,7 @@ def find_pdf(pdf_dir: Path, pdf_filename: str) -> Path | None:
         return resolved if resolved.is_relative_to(root) and resolved.is_file() else None
     _build_pdf_cache(root)
     candidates = set()
-    key = relative.name.casefold() if os.name == 'nt' else relative.name
+    key = _pdf_filename_key(relative.name)
     for path in _pdf_cache.get(key, []):
         resolved = path.resolve()
         if resolved.is_relative_to(root) and resolved.is_file():
