@@ -6,12 +6,12 @@
     "url": "https://github.com/bjreisman/chatgpt-endnote-mcp",
     "source": "github"
   },
-  "version": "1.4.6",
+  "version": "0.1.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "chatgpt-endnote-mcp",
-      "version": "1.4.6",
+      "version": "0.1.0",
       "transport": {
         "type": "stdio"
       }

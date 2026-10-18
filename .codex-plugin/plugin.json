@@ -1,6 +1,6 @@
 {
   "name": "endnote-research",
-  "version": "1.4.7",
+  "version": "0.1.0",
   "description": "Index and search exported EndNote libraries locally from Codex desktop.",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",

@@ -30,14 +30,38 @@ Your EndNote library is exported to XML, then indexed with PDF text in a separat
 - An XML export from EndNote and its PDF attachment directory, usually `<library>.Data/PDF` next to the `.enl` file or `PDF` inside an `.enlp` package
 - Permission to install Python dependencies and read your selected library files
 
-### Windows versus macOS/Linux
+## Version numbering and citation
 
-The 1.4.7 candidate adds native Windows support. The research tools, CLI commands,
+The current **0.1.0 development candidate is unpublished**. It was previously
+numbered 1.4.7; 0.1.0 begins this project's independent release sequence, with
+1.0.0 reserved for the first stable release after acceptance checks pass.
+This numbering is independent of both the original Claude project's releases
+and the MCP SDK version; the SDK requirement remains below 2.
+The published [v1.4.6 prerelease](https://github.com/bjreisman/chatgpt-endnote-mcp/releases/tag/v1.4.6)
+retains its historical numbering, tag, and downloads. Preparing 0.1.0 does not
+establish release readiness.
+
+For research using this Codex integration, cite the version you actually used
+using [CITATION.cff](CITATION.cff). The development candidate's citation is:
+
+> Reisman, B., Gokmen, G., & ChatGPT EndNote MCP contributors. *ChatGPT EndNote MCP: Local EndNote Search for Codex Desktop* (Version 0.1.0, unpublished development candidate) [Computer software]. https://github.com/bjreisman/chatgpt-endnote-mcp
+
+This integration derives from the original EndNote MCP. Gokhan Gokmen remains
+a co-author, and the citation file also references his original software:
+
+> Gokmen, G. *EndNote MCP: Connecting EndNote Reference Libraries to Claude AI* [Computer software]. https://doi.org/10.5281/zenodo.18617546
+
+Please also acknowledge the original software when describing this project's
+foundation. The DOI above identifies the upstream project, not this port.
+
+## Windows versus macOS/Linux
+
+The 0.1.0 candidate adds native Windows support. The research tools, CLI commands,
 configuration precedence, and index schema are the same across platforms.
 
 | Setup detail | Windows 11 x64 | macOS / Linux |
 | --- | --- | --- |
-| Plugin package | `endnote-research-1.4.7-windows.zip`, extracted local marketplace | `endnote-research-1.4.7.zip`; the Git marketplace also uses the Unix manifest |
+| Plugin package | `endnote-research-0.1.0-windows.zip`, extracted local marketplace | `endnote-research-0.1.0.zip`; the Git marketplace also uses the Unix manifest |
 | Shell and launcher | Windows PowerShell 5.1 for setup; `cmd.exe` launcher | POSIX shell (`sh`) |
 | Runtime installer | `scripts/install-desktop.ps1`; `-Replace`, `-Semantic` | `scripts/install-desktop.sh`; `--replace`, `--semantic` |
 | Executable | `chatgpt-endnote-mcp.exe` | `chatgpt-endnote-mcp` |
@@ -51,13 +75,13 @@ desktop installation walkthrough below is for macOS and Windows.
 
 ## Install the plugin and set up your library
 
-### Windows package (1.4.7 development prerelease)
+### Windows package (0.1.0 development prerelease)
 
-Native Windows support is being validated for 1.4.7. This version is prepared
+Native Windows support is being validated for 0.1.0. This version is prepared
 for review; it has not been published. Do not use the macOS Git marketplace
 installation below on Windows: the repository's default manifest launches `sh`.
 
-Build or obtain `endnote-research-1.4.7-windows.zip`, extract it into a permanent
+Build or obtain `endnote-research-0.1.0-windows.zip`, extract it into a permanent
 folder, then run these commands separately in Windows PowerShell 5.1:
 
 ```powershell
@@ -174,7 +198,7 @@ Indexing, reindexing, and refreshing are incremental: they process changed recor
 and PDFs while reusing unchanged PDF text. Unchanged PDFs
 that were successfully indexed or found textless are skipped; failed PDFs are
 retried. The CLI reports `Processed 100 references...`, then 200, 300, and so on.
-Initial indexing can take a while for large libraries. In the 1.4.7 candidate,
+Initial indexing can take a while for large libraries. In the 0.1.0 candidate,
 PDF extraction uses a short-lived Python subprocess on every platform to enforce
 deadlines and isolate crashes. Skipped PDFs and research searches do not start
 extraction workers; the worker adds no new runtime dependency.
@@ -189,6 +213,38 @@ Synchronizing removals requires an explicit request and confirmation that the
 export is complete.
 
 ## Update the plugin and runtime
+
+### Move from legacy 1.4.x numbering to 0.1.0
+
+This transition is an intentional numbering reset: version tools consider
+0.1.0 older than 1.4.x. An ordinary upgrade check will not perform this migration.
+Only migrate when you explicitly request replacement and have a reviewed 0.1.0
+package; no 0.1.0 release or download is published yet.
+
+Register the extracted package as the local marketplace and reinstall the plugin
+using the existing platform instructions above. From that package's root, replace
+the runtime explicitly:
+
+```sh
+sh scripts/install-desktop.sh --replace
+```
+
+On Windows PowerShell 5.1:
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File '.\scripts\install-desktop.ps1' -Replace
+```
+
+If the existing runtime has semantic dependencies, retain them by adding
+`--semantic` on Unix or `-Semantic` on Windows. Keep the existing model cache;
+replacement does not require another model download. Use the executable printed
+by the installer and verify `--version` reports 0.1.0. Reuse the existing
+configuration (including any configuration override), XML export, PDFs, and
+index; do not rerun setup with `--force` or rebuild the index merely to renumber.
+Restart Codex before running `doctor` and a search against the existing index.
+Runtime replacement does not update a plugin still pinned to the historical tag.
+
+### Update within the independent release sequence
 
 Refresh your Git marketplace to pick up changes at its configured ref:
 
@@ -209,7 +265,7 @@ release notes require it.
 ## Direct registration (alternative)
 
 If you prefer to manage installation yourself, install the CLI from a checkout
-with `uv tool install .` on either platform. For Windows, use the 1.4.7 candidate
+with `uv tool install .` on either platform. For Windows, use the 0.1.0 candidate
 source or Windows package, then follow the PowerShell setup/index/doctor commands
 above. The older `v1.4.6` source below is the macOS/Unix prerelease and does not
 provide native Windows support:
