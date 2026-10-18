@@ -1,9 +1,37 @@
-# Windows 1.4.7 candidate validation
+# Windows 0.1.0 candidate validation
 
 Target: Windows 11 x64, Windows PowerShell 5.1, Python 3.10–3.13.
 The version is prepared for prerelease review, not published.
 
-## Local results — October 3, 2026
+## Independent numbering validation — October 17, 2026
+
+The candidate was renumbered from 1.4.7 to 0.1.0; 1.0.0 is reserved for the
+first stable release. The published v1.4.6 artifacts retain their historical
+numbering. The following checks cover attribution/version metadata and the
+explicit replacement path, not new runtime functionality:
+
+- macOS/Python 3.12: full suite passed, 175 passed and 14 skipped (native Windows,
+  Windows-only filesystem checks, and opt-in semantic integration).
+- Updated citation passed the official CFF 1.2.0 schema; upstream author, title,
+  DOI, and repository were checked against the original project's citation file.
+- Wheel, source distribution, and both platform ZIPs built with consistent
+  0.1.0 metadata. ZIP contents include attribution and the correct native
+  launcher, and exclude private inputs, configurations, and databases.
+- The actual published 1.4.6 wheel was installed in a temporary Unix uv tool
+  directory, then replaced using the extracted 0.1.0 package's installer.
+  The reported version, doctor, and a real stdio metadata search passed.
+  Configuration, index, XML/PDF, and model-cache marker hashes were unchanged.
+  No semantic model was downloaded; semantic-preserving flags are covered by
+  installer tests rather than this core-only migration check.
+
+Native Windows installer checks run in the existing GitHub Actions matrix.
+Record their result for the PR separately; local macOS skips do not establish
+Windows acceptance. Fresh-profile GUI onboarding remains a separate gate.
+
+## Historical local results — October 3, 2026
+
+These results were recorded for the candidate then numbered 1.4.7. The candidate
+is now numbered 0.1.0; the recorded runs are not acceptance of a new release.
 
 - Windows 11 x64 (build 26100): core suite passed on Python 3.10 and 3.12.
   Latest Python 3.12 result: 179 passed, 9 skipped (seven Unix-platform
@@ -110,7 +138,7 @@ model. These checks supplement the GUI gate below; they do not replace it.
 ## Upgrade and packaging
 
 The default Git marketplace remains Unix. Windows installation uses
-`endnote-research-1.4.7-windows.zip`; Unix uses `endnote-research-1.4.7.zip`.
+`endnote-research-0.1.0-windows.zip`; Unix uses `endnote-research-0.1.0.zip`.
 Both ZIPs share source, plugin identity and version. Replace the marketplace source
 when changing platform/version; enable only one EndNote connection.
 

@@ -1,6 +1,6 @@
 {
   "name": "endnote-research",
-  "version": "1.4.7",
+  "version": "0.1.0",
   "description": "Search exported EndNote libraries and draft reviewed paper-session notes locally.",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",

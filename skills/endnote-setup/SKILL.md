@@ -5,6 +5,31 @@ description: Set up or update the local EndNote Research plugin when the user as
 
 # Set up EndNote Research
 
+## Independent version transition
+
+The 0.1.0 candidate begins independent numbering; 1.0.0 is reserved for the first
+stable release. The previous 1.4.x numbers followed the upstream project and are
+not newer releases of this independent sequence. When the installed plugin's
+version is 0.1.0 and the runtime reports 1.4.x, identify a legacy-version mismatch
+even though numeric comparison considers 0.1.0 older. Explain the numbering reset
+and use the installed plugin's replacement installer when the user requests this
+migration (`--replace` on Unix, `-Replace` on Windows). The user's explicit
+migration request authorizes that replacement; do not request it again.
+Do not perform replacement automatically during server startup.
+
+Preserve existing semantic support by passing `--semantic` or `-Semantic` if it
+was installed or requested. Determine that from the selected runtime's installed
+dependencies or prior setup evidence; if unknown, clarify the user's semantic
+preference before replacing it. Preserve the model cache and existing
+configuration, source XML/PDFs, and index. Do not use `setup --force`, `index
+--full`, or change paths merely for this numbering transition. Verify the printed
+executable reports 0.1.0, restart Codex, then run `doctor` and a metadata search
+with the same configuration. A historical v1.4.6 plugin must itself be replaced
+with the reviewed candidate package before installing its runtime. The candidate
+is unpublished; do not invent release links or assume acceptance has passed.
+
+## Setup workflow
+
 Use this workflow for “Set up my EndNote library.” Explain that it installs a local Python runtime with uv when needed, reads an EndNote XML export and PDFs, and creates a separate local index. Relevant retrieved evidence can enter the AI conversation. It does not read the live EndNote database.
 
 Locate the plugin root from this skill's installed path: `skills/endnote-setup/SKILL.md` is two directories below the root. Use that installed copy's installer; do not download an unrelated version. On Windows use `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File PLUGIN_ROOT/scripts/install-desktop.ps1`; on Unix use `sh PLUGIN_ROOT/scripts/install-desktop.sh`. Quote all paths and command arguments. In PowerShell, use single-quoted strings, double embedded apostrophes, and use `&` before a quoted executable path. Windows requires the Windows ZIP's native manifest; the default Git marketplace package uses `sh`.

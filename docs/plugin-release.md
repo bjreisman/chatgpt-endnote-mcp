@@ -1,7 +1,7 @@
 # EndNote Research 1.4.6 release validation
 
-This is the historical 1.4.6 validation record. For the 1.4.7 Windows candidate,
-see [Windows validation and release gates](windows-acceptance.md). No 1.4.7 release
+This is the historical 1.4.6 validation record. For the current 0.1.0 Windows
+candidate (formerly 1.4.7), see [Windows validation and release gates](windows-acceptance.md). No 0.1.0 release
 has been published; do not treat historical macOS checks as Windows acceptance.
 
 This release adds local plugin metadata/icons, a setup onboarding skill, an

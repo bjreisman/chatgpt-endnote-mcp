@@ -1,6 +1,7 @@
 import json
 import os
 import pytest
+import yaml
 from pathlib import Path
 
 try:
@@ -10,6 +11,27 @@ except ModuleNotFoundError:  # Python 3.10
 
 
 ROOT = Path(__file__).parents[1]
+
+
+def test_release_versions_and_upstream_citation_agree():
+    project = tomllib.loads((ROOT / 'pyproject.toml').read_text())['project']
+    plugin = json.loads((ROOT / '.codex-plugin/plugin.json').read_text())
+    citation = yaml.safe_load((ROOT / 'CITATION.cff').read_text())
+    registry = json.loads((ROOT / 'examples/server.registry.template.json').read_text())
+    version = project['version']
+    assert plugin['version'] == citation['version'] == registry['version'] == version
+    assert all(package['version'] == version for package in registry['packages'])
+    assert citation['repository-code'] == project['urls']['Repository']
+    # The original DOI credits the foundation; it must not identify this port.
+    assert citation.get('doi') != '10.5281/zenodo.18617546'
+    upstream = next(ref for ref in citation['references']
+                    if ref.get('doi') == '10.5281/zenodo.18617546')
+    assert upstream['type'] == 'software'
+    assert upstream['title'] == 'EndNote MCP: Connecting EndNote Reference Libraries to Claude AI'
+    assert upstream['repository-code'] == 'https://github.com/gokmengokhan/endnote-mcp'
+    authors = {author.get('family-names'): author for author in citation['authors']}
+    assert authors['Reisman']['orcid'] == 'https://orcid.org/0000-0001-7847-2612'
+    assert authors['Gokmen']['orcid'] == upstream['authors'][0]['orcid'] == 'https://orcid.org/0000-0001-8883-1770'
 
 
 def test_package_installs_the_local_desktop_command_without_experimental_http_deps():
