@@ -31,8 +31,6 @@ class Config:
     pdf_dir: Path
     db_path: Path
     max_pdf_pages: int = 30
-    native_notes_enabled: bool = False
-    live_library: Path | None = None
     config_path: Path | None = None
 
     @classmethod
@@ -82,19 +80,10 @@ class Config:
         else:
             db_path = path.parent / "library.db"
 
-        enabled = raw.get("native_notes_enabled", False)
-        if not isinstance(enabled, bool):
-            raise ValueError("native_notes_enabled must be a boolean.")
-        live = raw.get("live_library")
-        if enabled and not live:
-            raise ValueError("native_notes_enabled requires an explicit live_library path.")
-
         return cls(
             endnote_xml=endnote_xml,
             pdf_dir=pdf_dir,
             db_path=db_path,
             max_pdf_pages=int(raw.get("max_pdf_pages", 30)),
-            native_notes_enabled=enabled,
-            live_library=Path(live).expanduser().resolve() if live else None,
             config_path=path,
         )

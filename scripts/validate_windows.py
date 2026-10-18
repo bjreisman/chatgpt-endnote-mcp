@@ -69,7 +69,7 @@ async def validate(args):
         async with stdio_client(params) as (reader, writer):
             async with ClientSession(reader, writer) as session:
                 await asyncio.wait_for(session.initialize(), 30)
-                assert len((await session.list_tools()).tools) == 14
+                assert len((await session.list_tools()).tools) == 12
                 before = digest(database)
                 cases = [('search_references', {'query': metadata_query}),
                     ('search_fulltext', {'query': pdf_query}),
@@ -94,7 +94,7 @@ async def validate(args):
     assert digest(args.xml) == hashes['xml']
     assert digest(pdf) == hashes['selected_pdf']
     ready = json.loads(cli('doctor', '--config', str(config)))['ready']
-    report.update(ready=ready, tools_registered=14, successful_calls=len(checked),
+    report.update(ready=ready, tools_registered=12, successful_calls=len(checked),
                   server_restart=True, live_reindex=True, retrieval_preserved_index=True,
                   xml_and_selected_pdf_unchanged=True, gui_onboarding_verified=False)
     (output / 'acceptance-summary.json').write_text(json.dumps(report, indent=2), encoding='utf-8')

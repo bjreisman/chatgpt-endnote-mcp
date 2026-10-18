@@ -239,7 +239,7 @@ def test_platform_zip_real_stdio_and_incremental_update(tmp_path, platform):
             async with stdio_client(params) as (reader, writer):
                 async with ClientSession(reader, writer) as session:
                     await asyncio.wait_for(session.initialize(), 30)
-                    assert len((await session.list_tools()).tools) == 14
+                    assert len((await session.list_tools()).tools) == 12
                     before = database.read_bytes()
                     for name, arguments in [('search_references', {'query': 'Updated' if restart else 'Synthetic'}), ('search_fulltext', {'query': 'evidence'}), ('get_citation', {'rec_number': 1}), ('read_pdf_section', {'rec_number': 1})]:
                         response = await session.call_tool(name, arguments)

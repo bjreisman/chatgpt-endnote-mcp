@@ -1,7 +1,6 @@
 """Exact reviewed drafts and durable recovery, isolated from the research index.
 
-The shipping macOS adapter is read-only until its write safety gate passes.
-A future writer must provide atomic conditional replacement and faithful styling.
+Drafts use the exported library index and PDFs; no running EndNote connection exists.
 """
 from __future__ import annotations
 
@@ -15,19 +14,15 @@ import sqlite3
 from typing import Literal
 from uuid import UUID, uuid4
 
-from lxml import etree
-
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
 from endnote_mcp import db, search
 from endnote_mcp.config import Config
 from endnote_mcp.locking import FileLock
-from endnote_mcp.native_notes import MacEndNoteAdapter, NativeNoteError, snapshot_from_xml
 
 MAX_ENTRY = 20000
 MAX_PREVIEW = 50000
 REF_FIELDS = ('rec_number', 'title', 'authors', 'year', 'doi')
-REFRESH = 'EndNote was updated. Search still uses the XML snapshot; export again before incremental reindexing.'
 
 
 class SourceCitation(BaseModel):
@@ -82,14 +77,6 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
 
 
-def field_equal(a, b):
-    return all(a.get(k) == b.get(k) for k in ('library_path', 'database_id', 'rec_number', 'notes_text', 'notes_xml'))
-
-
-def same_target(a, b):
-    return all(a.get(k) == b.get(k) for k in ('library_path', 'database_id', 'rec_number'))
-
-
 def render_entry(ref, entry, note_id, created):
     lines = [f'--- Session note {note_id} ---', ref['title'],
              f"Authors: {'; '.join(ref['authors'])}", f"Year: {ref['year']}; DOI: {ref.get('doi') or 'not recorded'}",
@@ -118,12 +105,11 @@ def render_entry(ref, entry, note_id, created):
 
 
 class NoteService:
-    def __init__(self, config_path=None, *, adapter=None):
+    def __init__(self, config_path=None):
         self.cfg = Config.load(config_path)
-        self.adapter = adapter or (MacEndNoteAdapter(self.cfg.live_library) if self.cfg.native_notes_enabled else None)
         self.journal = self.cfg.config_path.parent / 'session-notes.sqlite3'
         self.scope = str(self.cfg.config_path)
-        if self.journal.resolve() in {self.cfg.db_path, self.cfg.endnote_xml, self.cfg.config_path, self.cfg.live_library}:
+        if self.journal.resolve() in {self.cfg.db_path, self.cfg.endnote_xml, self.cfg.config_path}:
             raise ValueError('The note journal must be separate from the index, source files, and configuration.')
 
     @contextmanager
@@ -199,25 +185,6 @@ class NoteService:
                         raise ValueError('Citation includes pages without indexed evidence text.')
         return fingerprints
 
-    def _validate_export_binding(self, ref, live):
-        """Bind the indexed paper's export to the explicitly configured live library."""
-        matches = []
-        try:
-            for _, record in etree.iterparse(str(self.cfg.endnote_xml), events=('end',), tag='record',
-                                             resolve_entities=False, no_network=True):
-                if record.findtext('rec-number') == str(ref['rec_number']):
-                    matches.append(etree.tostring(record, encoding='unicode'))
-                record.clear()
-                while record.getprevious() is not None:
-                    del record.getparent()[0]
-        except (OSError, etree.XMLSyntaxError) as exc:
-            raise NativeNoteError('export_identity_unavailable', 'Cannot validate the source export identity; use manual paste.') from exc
-        if len(matches) != 1:
-            raise NativeNoteError('export_identity_unavailable', 'The source export no longer uniquely identifies the indexed record; reindex or use manual paste.')
-        source = snapshot_from_xml('<xml><records>' + matches[0] + '</records></xml>', self.cfg.live_library, ref)
-        if source['database_id'] != live['database_id']:
-            raise NativeNoteError('identity_conflict', 'Export and live EndNote database identities differ; use manual paste.')
-
     def preview_session_note(self, rec_number, entry):
         if isinstance(rec_number, bool) or not isinstance(rec_number, int) or rec_number < 1:
             raise ValueError('rec_number must be a positive integer.')
@@ -227,35 +194,14 @@ class NoteService:
         note_id = str(uuid4())
         created = datetime.now().astimezone().isoformat(timespec='seconds')
         text = render_entry(ref, entry, note_id, created)
-        native = {'eligible': False, 'code': 'native_disabled', 'reason': 'Native saving is disabled; use manual paste.'}
-        preimage = None
-        if self.cfg.native_notes_enabled and self.adapter:
-            try:
-                preimage = self.adapter.snapshot(reference_identity(ref))
-                self._validate_export_binding(reference_identity(ref), preimage)
-                native = {'eligible': bool(self.adapter.safe_writes), 'code': 'ready' if self.adapter.safe_writes else 'native_safety_gate',
-                          'reason': 'Validated native writer available.' if self.adapter.safe_writes else self.adapter.safety_reason}
-            except NativeNoteError as exc:
-                native = {'eligible': False, 'code': exc.code, 'reason': str(exc)}
         draft = {'note_id': note_id, 'scope': self.scope, 'status': 'draft', 'created': created,
                  'db_path': str(self.cfg.db_path), 'reference': reference_identity(ref),
                  'reference_hash': digest(ref), 'source_fingerprints': source_fingerprints,
-                 'entry': entry.model_dump(), 'rendered_text': text,
-                 'native': native, 'preimage': preimage, 'postimage': None}
-        if preimage:
-            old = preimage['notes_text']
-            draft['intended_text'] = old + ('\n\n' if old else '') + text
-            if native['eligible']:
-                draft['intended_postimage'] = self.adapter.plan_replacement(preimage, draft['intended_text'])
-                if (not same_target(preimage, draft['intended_postimage']) or
-                        draft['intended_postimage']['notes_text'] != draft['intended_text']):
-                    raise NativeNoteError('native_safety_gate', 'Adapter did not plan the exact reviewed replacement.')
+                 'entry': entry.model_dump(), 'rendered_text': text}
         result = {'note_id': note_id, 'status': 'unsaved', 'saved': False, 'text': text,
-                  'reference': draft['reference'], 'created': created, 'native': native,
-                  'has_preimage': preimage is not None, 'source_text_is_untrusted': True,
-                  'target': ({k: preimage[k] for k in ('library_path', 'database_id', 'rec_number')} if preimage else
-                             {'library_path': str(self.cfg.live_library) if self.cfg.live_library else None, 'validated': False}),
-                  'message': 'Review this exact entry. Request save explicitly, or paste it manually into Research Notes.'}
+                  'reference': draft['reference'], 'created': created,
+                  'source_text_is_untrusted': True,
+                  'message': 'Review this exact entry, then paste it manually into the matching paper’s Research Notes. EndNote has not been changed.'}
         if len(json.dumps(result, ensure_ascii=False)) > MAX_PREVIEW:
             raise ValueError('Complete preview exceeds the response limit; shorten the entry or metadata.')
         with self._journal(create=True) as conn:
@@ -271,79 +217,4 @@ class NoteService:
             draft = self._load(conn, note_id)
         if recovery:
             return draft
-        return {k: draft[k] for k in ('note_id', 'status', 'created', 'reference', 'rendered_text', 'native')}
-
-    def _writer(self, draft):
-        if not self.cfg.native_notes_enabled or self.adapter is None:
-            raise NativeNoteError('native_disabled', 'Native saving is disabled; this draft remains unsaved.')
-        if not self.adapter.safe_writes:
-            raise NativeNoteError('native_safety_gate', self.adapter.safety_reason)
-        if not draft['native']['eligible'] or not draft['preimage']:
-            raise NativeNoteError('preview_required', 'This draft has no eligible native preview; preview again.')
-        if str(self.cfg.live_library) != draft['preimage']['library_path']:
-            raise NativeNoteError('wrong_library', 'Configured live library changed after preview.')
-        if str(self.cfg.db_path) != draft['db_path']:
-            raise NativeNoteError('stale_preview', 'Configured index changed after preview.')
-
-    def commit_session_note(self, note_id):
-        with self._journal() as conn:
-            draft = self._load(conn, note_id)
-            self._writer(draft)
-            if draft['status'] in ('undoing', 'undone'):
-                raise NativeNoteError('invalid_note_state', 'This entry is being undone or was undone; preview a new entry.')
-            current = self.adapter.snapshot(draft['reference'])
-            if not same_target(current, draft['preimage']):
-                raise NativeNoteError('identity_conflict', 'Live record identity changed after preview.')
-            if draft['status'] == 'saved':
-                if not field_equal(current, draft['postimage']):
-                    raise NativeNoteError('live_content_changed', 'This entry was saved, but live notes changed afterward. No retry write was made.')
-                return self._saved_result(draft, already_saved=True)
-            if draft['status'] == 'saving' and field_equal(current, draft['intended_postimage']):
-                draft.update(status='saved', postimage=current)
-                self._save(conn, draft)
-                return self._saved_result(draft, already_saved=True)
-            if not field_equal(current, draft['preimage']):
-                raise NativeNoteError('stale_preview', 'Live notes changed; preview again. Recovery artifacts are retained.')
-            ref = self._reference(draft['reference']['rec_number'])
-            if digest(ref) != draft['reference_hash']:
-                raise NativeNoteError('stale_preview', 'Indexed reference changed; preview again.')
-            self._validate_export_binding(draft['reference'], current)
-            if self._validate_sources(ref, SessionNoteEntry.model_validate(draft['entry'])) != draft['source_fingerprints']:
-                raise NativeNoteError('stale_preview', 'A cited PDF changed after preview; preview again.')
-            draft['status'] = 'saving'
-            self._save(conn, draft)  # Durable preimage and intent precede the external operation.
-            self.adapter.replace_notes(current, draft['intended_text'], notes_xml=draft['intended_postimage']['notes_xml'])
-            verified = self.adapter.snapshot(draft['reference'])
-            if not field_equal(verified, draft['intended_postimage']):
-                raise NativeNoteError('write_uncertain', 'Read-back did not match. Do not paste or append again; retry this note_id to reconcile.')
-            draft.update(status='saved', postimage=verified)
-            self._save(conn, draft)
-            return self._saved_result(draft)
-
-    @staticmethod
-    def _saved_result(draft, already_saved=False):
-        return {'note_id': draft['note_id'], 'status': 'saved', 'saved': True,
-                'already_saved': already_saved, 'message': REFRESH, 'refresh_required': True}
-
-    def undo_session_note(self, note_id):
-        with self._journal() as conn:
-            draft = self._load(conn, note_id)
-            self._writer(draft)
-            if draft['status'] not in ('saved', 'undoing', 'undone'):
-                raise NativeNoteError('invalid_note_state', 'Only a verified saved entry can be undone. Reconcile interrupted saves first.')
-            current = self.adapter.snapshot(draft['reference'])
-            if draft['status'] in ('undoing', 'undone') and field_equal(current, draft['preimage']):
-                draft['status'] = 'undone'
-                self._save(conn, draft)
-                return {'note_id': note_id, 'status': 'undone', 'message': REFRESH, 'refresh_required': True}
-            if draft['status'] == 'undone' or not field_equal(current, draft['postimage']):
-                raise NativeNoteError('undo_conflict', 'Live notes changed after saving. Nothing was restored; recovery artifacts are retained.')
-            draft['status'] = 'undoing'
-            self._save(conn, draft)
-            self.adapter.replace_notes(current, draft['preimage']['notes_text'], notes_xml=draft['preimage']['notes_xml'])
-            verified = self.adapter.snapshot(draft['reference'])
-            if not field_equal(verified, draft['preimage']):
-                raise NativeNoteError('undo_uncertain', 'Restore read-back differs from the preimage; recovery artifacts are retained.')
-            draft['status'] = 'undone'
-            self._save(conn, draft)
-            return {'note_id': note_id, 'status': 'undone', 'message': REFRESH, 'refresh_required': True}
+        return {k: draft[k] for k in ('note_id', 'status', 'created', 'reference', 'rendered_text')}

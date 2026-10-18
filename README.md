@@ -20,7 +20,7 @@ Once your library is indexed, you can ask Codex to search references and attache
 
 ## How it works
 
-Your EndNote library is exported to XML, then indexed with PDF text in a separate local SQLite database. The Codex plugin connects to that index through a local stdio MCP server. Optional local embeddings add meaning-based search. The research tools only read the index; session-note previews write a separate local journal. Native note saving remains gated off. Setup, indexing, and embedding preparation are explicit local operations.
+Your EndNote library is exported to XML, then indexed with PDF text in a separate local SQLite database. The Codex plugin connects to that index through a local stdio MCP server. Optional local embeddings add meaning-based search. The research tools only read the index; session-note previews write a separate local journal. Notes are pasted into EndNote manually; the plugin has no live EndNote connection. Setup, indexing, and embedding preparation are explicit local operations.
 
 ## Requirements
 
@@ -182,11 +182,11 @@ The plugin exposes these 11 read-only research tools plus three session-note too
 | `read_pdf_section` | Read selected physical PDF pages, up to 30 per request |
 | `list_references_by_topic` | Browse matching references by topic |
 
-The session-note tools are `preview_session_note`, `commit_session_note`, and
-`undo_session_note`. Preview writes an **unsaved** draft to a separate local
-journal. The shipping adapter refuses live commits and undo until its safety gate
-passes; reviewed entries can be pasted manually into EndNote Research Notes.
-See [reviewed notes and native acceptance](docs/session-notes.md).
+The `preview_session_note` tool writes an **unsaved** draft to a separate local
+journal. Review the complete text, then paste it into the matching paper’s
+EndNote Research Notes. The plugin cannot read or write the running EndNote
+application or confirm that you pasted a note.
+See [reviewed notes and recovery](docs/session-notes.md).
 
 Unlike the original Claude integration, this server does not expose a `rebuild_index` tool. Ask Codex to index your library or run the local CLI after re-exporting the XML.
 
@@ -308,7 +308,7 @@ If already installed, update its `SKILL.md` rather than creating a nested copy. 
 | `status` | Read index and attachment counts |
 | `doctor` | Check readiness and print direct-registration instructions |
 | `serve-desktop` | Start the stdio MCP server without startup writes |
-| `note-show NOTE_ID [--recovery]` | Read a durable draft or its recovery preimages |
+| `note-show NOTE_ID [--recovery]` | Read a durable draft or its stored inputs and provenance |
 
 Default configuration directories are listed in the platform comparison above;
 each contains `config.yaml` and `library.db`. Every command accepts `--config PATH`.
@@ -349,7 +349,7 @@ For direct registration, `chatgpt-endnote-mcp doctor` also prints the `codex mcp
 
 ## Privacy and scope
 
-The plugin reads your chosen XML/PDFs and writes a separate local index. The shipping native adapter does not edit EndNote or synchronize with a live library. Session-note previews write local drafts and recovery data beside the selected configuration; optional macOS reads inspect an explicitly configured open library. Retrieved metadata, abstracts, notes, and PDF passages may enter the active AI conversation through Codex's configured model connection. Use material you are authorized to share. This describes data flow and is not institutional approval.
+The plugin reads your chosen XML/PDFs and writes a separate local index. There is no connection to the running EndNote application. Session-note previews write local drafts and recovery data beside the selected configuration; users paste reviewed notes themselves. Retrieved metadata, abstracts, notes, and PDF passages may enter the active AI conversation through Codex's configured model connection. Use material you are authorized to share. This describes data flow and is not institutional approval.
 
 No hosted service, inbound listener, tunnel, or separate OpenAI API key is needed. The older HTTP and Claude setup integrations were retired; see [the cleanup record](docs/cleanup-inventory.md). `examples/server.registry.template.json` is only a future registry example; no PyPI or MCP Registry publication is promised.
 

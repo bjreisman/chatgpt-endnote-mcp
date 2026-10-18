@@ -10,7 +10,6 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from endnote_mcp.native_notes import NativeNoteError
 from endnote_mcp.locking import IndexBusyError
 from endnote_mcp.config import Config
 from endnote_mcp import db, search, embeddings
@@ -20,7 +19,7 @@ MAX_TEXT = 60000
 TOOLS = frozenset(('search_references', 'search_fulltext', 'search_library',
     'get_reference_details', 'get_citation', 'read_pdf_section',
     'list_references_by_topic', 'find_related', 'get_bibliography',
-    'search_semantic', 'get_bibtex', 'preview_session_note', 'commit_session_note', 'undo_session_note'))
+    'search_semantic', 'get_bibtex', 'preview_session_note'))
 
 
 class DesktopRuntime:
@@ -34,14 +33,6 @@ class DesktopRuntime:
         from endnote_mcp.session_notes import NoteService
         return NoteService(self.config_path).preview_session_note(rec_number, entry)
 
-    def commit_session_note(self, note_id):
-        from endnote_mcp.session_notes import NoteService
-        return NoteService(self.config_path).commit_session_note(note_id)
-
-    def undo_session_note(self, note_id):
-        from endnote_mcp.session_notes import NoteService
-        return NoteService(self.config_path).undo_session_note(note_id)
-
     def _connect(self):
         return db.connect_readonly(Config.load(self.config_path).db_path)
 
@@ -50,8 +41,6 @@ class DesktopRuntime:
             return self._error('unknown_tool', 'Unknown desktop tool.')
         try:
             return getattr(self, tool_name)(**(arguments or {}))
-        except NativeNoteError as exc:
-            return self._error(exc.code, str(exc), note_id=(arguments or {}).get('note_id'))
         except IndexBusyError as exc:
             return self._error('notes_busy' if tool_name.endswith('session_note') else 'index_busy', str(exc))
         except (FileNotFoundError, sqlite3.Error, db.IncompatibleIndexError) as exc:

@@ -192,7 +192,7 @@ def doctor(config):
 @cli.command("note-show")
 @click.argument("note_id")
 @click.option("--config", type=click.Path(exists=True, path_type=Path))
-@click.option("--recovery", is_flag=True, help="Include faithful preimages and operation state for manual recovery.")
+@click.option("--recovery", is_flag=True, help="Include stored draft inputs and provenance for recovery.")
 def note_show(note_id, config, recovery):
     """Read a durable session draft or its recovery data. Does not edit EndNote."""
     from endnote_mcp.session_notes import NoteService

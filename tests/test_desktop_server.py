@@ -13,7 +13,7 @@ TOOLS = {
     'get_citation', 'read_pdf_section', 'list_references_by_topic', 'find_related',
     'get_bibliography', 'search_semantic', 'get_bibtex',
 }
-NOTE_TOOLS = {'preview_session_note', 'commit_session_note', 'undo_session_note'}
+NOTE_TOOLS = {'preview_session_note'}
 ALL_TOOLS = TOOLS | NOTE_TOOLS
 
 
@@ -37,7 +37,7 @@ def test_readonly_surface_and_search_schemas():
     assert {tool.name for tool in tools} == ALL_TOOLS
     for tool in tools:
         assert tool.annotations.readOnlyHint is (tool.name not in NOTE_TOOLS)
-        assert tool.annotations.destructiveHint is (tool.name in {'commit_session_note', 'undo_session_note'})
+        assert tool.annotations.destructiveHint is False
         assert tool.annotations.idempotentHint is (tool.name != 'preview_session_note')
         assert tool.annotations.openWorldHint is False
         assert tool.outputSchema is not None
@@ -63,8 +63,6 @@ def test_readonly_surface_and_search_schemas():
     ('get_bibliography', {'rec_numbers': '42,43'}),
     ('get_bibtex', {'rec_numbers': '42,43'}),
     ('preview_session_note', {'rec_number': 42, 'entry': {'questions': ['What next?']}}),
-    ('commit_session_note', {'note_id': 'a-note'}),
-    ('undo_session_note', {'note_id': 'a-note'}),
 ])
 def test_tool_dispatch_and_structured_output(name, args):
     runtime = FakeRuntime()

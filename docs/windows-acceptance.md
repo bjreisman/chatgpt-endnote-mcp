@@ -84,7 +84,7 @@ semantic integration on Unix have not been rerun locally.
 - Windows real semantic dependency/model integration on Python 3.12.
 - Native installer discovery, explicit replacement/semantic flags, failure handling,
   and native launcher executable discovery, arguments, Unicode streams and exit codes.
-- Platform ZIPs, copied Windows ZIP stdio initialization, 14 tools (11 research and 3 notes), metadata/PDF
+- Platform ZIPs, copied Windows ZIP stdio initialization, 12 tools (11 research and 1 draft), metadata/PDF
   search, citations, PDF reads, incremental update and server restart.
 - Process-owned management locks, killed-manager recovery, active readers blocking
   publication, bounded failures preserving the previous index, and embedding refresh.
@@ -115,7 +115,7 @@ uv run pytest tests/test_semantic_integration.py -v
 real XML/PDF library using a new isolated output directory. It checks unchanged
 XML and one sampled PDF and reports counts only. `scripts/validate_codex_plugin.py`
 installs the extracted plugin into a fresh isolated Codex profile and verifies all
-14 tools through the native Codex app-server, without creating chats or running a
+12 tools through the native Codex app-server, without creating chats or running a
 model. These checks supplement the GUI gate below; they do not replace it.
 
 1. Use a fresh Windows Codex profile with no EndNote connection. Install the

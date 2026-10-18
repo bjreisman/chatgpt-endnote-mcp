@@ -1,40 +1,30 @@
 # Reviewed paper-session notes
 
-This prototype delivers reviewed entries for manual paste. **Live saving and undo
-are unavailable in the shipping adapter.** Issue #8 remains incomplete until
-native write acceptance passes. The existing eleven research tools remain
-read-only; three note tools explicitly advertise writes.
-
-## Review status — October 18, 2026
-
-This branch is a draft/manual-paste milestone for issue #8, not completion of
-native saving. Synthetic end-to-end checks exercise a PDF-cited preview through
-the real MCP transport, separate published findings from interpretation and
-questions, recover the exact Unicode/multiline text in a fresh CLI process, and
-retry save/undo after a server restart. Native operations remain refused and
-configuration, source XML/PDF, and index bytes remain unchanged. Windows fixture
-files use explicit UTF-8 so these checks do not depend on the machine's code page.
-
-The copyable text and recovery path are automated checks. Actual manual paste
-into a disposable EndNote library and fresh-profile Codex GUI onboarding remain
-human-visible acceptance work. Do not infer EndNote write safety from the
-simulated conditional-writer tests or mark issue #8 complete on this milestone.
+This milestone generates cited entries for manual paste into EndNote Research
+Notes. It reads the selected XML-derived index and PDF attachments, and stores
+exact drafts in a separate local journal. It has no connection to the running
+EndNote application, on either macOS or Windows. The eleven research tools stay
+read-only; `preview_session_note` is the only additional tool and writes only the
+local draft journal. There are no live save or undo tools.
 
 ## Review and paste
 
-Ask Codex to draft a session note for a selected reference. The preview includes
-paper identity, DOI when available, a dated provenance line, cited findings,
-and separate personal interpretation, questions, and hypotheses. It returns the
-full exact entry, a durable `note_id`, and an **unsaved** status. Preview does not
-change EndNote. Paste the reviewed text into that paper’s Research Notes yourself.
-The plugin cannot verify a manual paste or mark it as a native save.
+Ask Codex to draft a session note for a selected indexed reference. The preview
+includes title, authors, year, DOI when available, dated provenance, cited
+findings, and separate interpretation, questions, and hypotheses. It returns the
+complete exact entry, a durable `note_id`, and an **unsaved** status.
 
-Findings require at least one PDF or abstract citation. The tool checks reference
-membership, current attachment fingerprints, physical PDF page bounds, and
-indexed evidence text. It does not determine whether a finding is scientifically
-supported; that remains part of reading and review. Entries can contain personal
-sections alone. Each item is limited to 6,000 characters and the rendered entry
-to 20,000; excessive entries are rejected, never silently shortened.
+Review the text and identify the matching paper in EndNote, then paste the entry
+into that paper’s Research Notes yourself. Preserve existing notes when pasting.
+The plugin cannot inspect current notes, verify the paste, or mark a draft as
+saved to EndNote. No Automation permission or running EndNote process is needed
+to generate or recover a draft.
+
+Findings require at least one PDF or abstract citation. The tool checks attachment
+membership, current fingerprints, physical PDF page bounds, and indexed evidence
+text. Those checks validate a source location, not scientific support for a claim.
+Personal sections may stand alone. Each item is limited to 6,000 characters and
+the rendered entry to 20,000; excessive entries are rejected, never truncated.
 
 Example `preview_session_note` input:
 
@@ -62,105 +52,49 @@ An abstract citation is simply `{"evidence_type": "abstract"}`. The record and
 attachment IDs above are illustrative. The MCP schema rejects other source types
 and unknown fields. PDF indices refer to physical pages, not printed page labels.
 
-## Optional native reads and the closed write gate
-
-Native reads default off. To inspect eligibility, explicitly add these settings
-to the selected configuration on macOS:
-
-```yaml
-native_notes_enabled: true
-live_library: /absolute/path/to/Disposable Test Library.enl
-```
-
-This enables live **reads**, not permission to bypass the write gate. Serving and
-ordinary research requests do not contact EndNote or create a note journal.
-When a native preview is requested, EndNote must already be running with exactly
-one open library matching that path. macOS may request Automation permission.
-The helper neither opens nor closes libraries and never edits records.
-
-The adapter resolves live references using a unique DOI candidate (or unique
-title when DOI is absent), verifies title/year/authors and library path, and
-captures the EndNote database identifier. It obtains full XML through the
-in-memory `export … as "RSXML"` command. It never assumes that an exported record
-number or the native ID’s session `database` component identifies the live paper.
-The source export’s library path and database identifier must also agree with
-the live target. Duplicate candidates, conflicting metadata, wrong/multiple libraries, denied
-permission, and timeouts yield a copyable unsaved draft with the diagnostic.
-
-EndNote 2025 exposes separate `field` and `set field` commands. No validated
-atomic conditional field update is available through this adapter. A local lock
-only excludes this plugin’s own requests, not edits from EndNote or other clients.
-Rechecking before a separate write leaves a race in which a user’s edit could be
-lost. Text replacement also has no validated formatting-preserving append/restore
-behavior. Consequently **all native commits are refused**, including empty notes.
-Whole-record replacement is not a fallback.
-
-The recovery service is tested against a simulated atomic conditional writer.
-Those tests establish the service contract, not AppleScript write safety. A future
-adapter must demonstrate atomic conflict protection and faithful formatting before
-its internal gate can open; no YAML setting currently opens that gate.
-
 ## Durable drafts and recovery
 
 `session-notes.sqlite3` and its OS lock live beside the selected configuration,
-separately from `library.db`. They are created only by a note operation. The
-journal contains exact drafts and, when native reads succeed, full-record XML
-preimages including formatted Research Notes. Unix permissions are restricted to
-the owner. Preserve this journal if recovery is needed; it contains library data.
-
-Recover the exact draft after restarting:
+separately from `library.db`. They are created only by a note preview. The journal
+stores exact text, draft inputs, indexed paper identity, source fingerprints, and
+creation time. Unix permissions restrict access to the owner; this is local
+library data and should be preserved if draft recovery is needed.
 
 ```sh
-chatgpt-endnote-mcp note-show NOTE_ID --config '/path/to/config.yaml'
-chatgpt-endnote-mcp note-show NOTE_ID --config '/path/to/config.yaml' --recovery
+chatgpt-endnote-mcp note-show NOTE_ID --config /path/to/config.yaml
+chatgpt-endnote-mcp note-show NOTE_ID --config /path/to/config.yaml --recovery
 ```
 
-These commands read the journal without editing EndNote. Drafts are scoped to the
-configuration that created them. Recovery output includes preimages, expected
-postimages where applicable, and durable operation state.
+Use the exact configuration that created the draft. The first command returns
+the full rendered entry; `--recovery` includes the stored inputs and provenance.
+Recovery reads the journal without contacting EndNote or changing the index.
+Existing prototype journals are preserved rather than migrated or deleted;
+`--recovery` may include additional data previously stored by that prototype.
+No old journal contents or configuration settings can activate a live connection.
 
-A validated future writer uses `draft → saving → saved → undoing → undone` states.
-Intent, faithful field postimages, and preimages are committed before any external
-update. Citation fingerprints are pinned to the reviewed PDF versions. Retrying the same
-ID reconciles a completed write without another append. Unknown read-back results
-remain unresolved rather than being reported as saved; changed live fields block
-retries and undo. Do not paste again while a native operation is unresolved.
-Explicit undo restores only a matching postimage and retains recovery data on
-conflict. Native save/undo requires an explicit user request after the exact draft
-has been shown. Tool annotations are advisory; conversational approval is enforced
-by the research workflow, not inferred from a caller-supplied boolean.
+After manually pasting and saving, export fresh XML and reindex to make the notes
+available through ordinary research tools. The plugin continues using its previous
+snapshot until then. Pasting does not change the local journal’s draft status.
 
-The XML/index remains a snapshot after native saves, undo, or manual paste. Export
-fresh XML from EndNote before incremental reindexing; do not patch the index to
-represent unexported edits.
+## Validation and remaining acceptance
 
-## Disposable-library acceptance
+Tests exercise PDF-cited previews over real MCP stdio, exact Unicode/multiline
+recovery in a separate CLI process, recovery after restarting the server,
+configuration scoping, journal locking, and unchanged source/index bytes.
+Regression coverage rejects live save/undo tools and verifies that legacy native
+settings cannot cause a preview to invoke an external application.
 
-The initial read-only probe on October 3, 2026 found seven records in the supplied
-test library. Native IDs were library-scoped; field reads worked and XML export
-included a database identifier and style markup. `record contents` returned no
-usable result, so the adapter uses in-memory export. At that initial probe, the original and test libraries were both open.
-A later isolated-fixture run succeeded with only the test library open: seven
-records and eight attachments were indexed in metadata-only mode, the unsaved
-draft captured a live XML preimage, and commit returned `native_safety_gate`.
-No live records were changed.
+Manual paste and preservation of existing formatted notes were exercised on a
+disposable library on October 18, 2026. Those observations were made before the
+live adapter was separated; the current draft-only packages require fresh checks.
+Fresh-profile desktop chat presentation remains an outstanding acceptance check;
+CLI/app-server discovery alone does not establish that result.
 
-To prepare an isolated fixture and exercise the draft and closed gate:
+## Deferred AppleScript prototype
 
-```sh
-.venv/bin/python scripts/validate_session_notes.py --library '/absolute/path/to/Disposable Test Library.enl'
-```
-
-This script reads only the selected already-open library, then writes its XML,
-configuration, index, draft, and report under ignored `.local/session-notes-test`.
-Fixture capture may select the explicit test document among several open libraries;
-production eligibility still requires only one. It never changes normal user
-configuration or any live EndNote record.
-
-Before claiming native acceptance, validate on a disposable library with only
-that library open: database identity across reopen, formatted append and faithful
-restore, pending and simultaneous edits, persistence after reopening, automation
-denial, timeout/crash recovery, duplicate DOI and identity conflicts, and visible
-verification in EndNote. Until a mechanism protects the check/write interval,
-live write experiments remain blocked by the safety gate. Windows and ordinary
-ChatGPT native saving are deferred; draft/manual-paste support is cross-platform.
+The complete previous implementation, tests, and investigation notes are preserved
+on [codex/applescript-session-notes-prototype](https://github.com/bjreisman/chatgpt-endnote-mcp/tree/codex/applescript-session-notes-prototype).
+It is future evaluation work and is excluded from this PR’s source tree and
+packages. Do not merge that branch without a separate review of Unicode export
+fidelity, full-library performance, application permissions, concurrent edits,
+and any proposed write behavior. Issue #8 remains open for future integration.
