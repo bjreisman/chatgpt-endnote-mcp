@@ -106,7 +106,7 @@ def test_copied_plugin_launches_real_stdio_server(tmp_path):
         async with stdio_client(params) as (reader, writer):
             async with ClientSession(reader, writer) as session:
                 await asyncio.wait_for(session.initialize(), 30)
-                assert len((await session.list_tools()).tools) == 11
+                assert len((await session.list_tools()).tools) == 14
                 result = await session.call_tool("search_references", {"query": "EXAMPLE"})
                 assert not result.isError
                 assert result.structuredContent["items"]

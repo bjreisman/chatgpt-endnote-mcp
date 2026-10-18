@@ -81,7 +81,7 @@ def test_setup_index_doctor_local_workflow(tmp_path):
 
 
 def test_desktop_cli_excludes_experimental_services():
-    assert set(cli.commands) == {"setup", "index", "embed", "status", "doctor", "serve-desktop"}
+    assert set(cli.commands) == {"setup", "index", "embed", "status", "doctor", "serve-desktop", "note-show"}
 
 
 def test_embedding_failure_preserves_index_and_success_promotes(tmp_path, monkeypatch):

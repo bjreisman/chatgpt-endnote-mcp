@@ -63,7 +63,7 @@ def validate(args):
             tools = sorted(servers[0]['tools'])
             from endnote_mcp.desktop_runtime import TOOLS
             if set(tools) != TOOLS:
-                raise RuntimeError('Codex did not discover the expected 11 EndNote tools.')
+                raise RuntimeError('Codex did not discover the expected EndNote research and session-note tools.')
             report = {'codex': initialized['userAgent'], 'plugin_installed': True,
                       'tools': tools, 'gui_onboarding_verified': False}
             (profile / 'codex-summary.json').write_text(json.dumps(report, indent=2), encoding='utf-8')

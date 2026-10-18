@@ -20,7 +20,7 @@ Once your library is indexed, you can ask Codex to search references and attache
 
 ## How it works
 
-Your EndNote library is exported to XML, then indexed with PDF text in a separate local SQLite database. The Codex plugin connects to that index through a local stdio MCP server. Optional local embeddings add meaning-based search. The server's tools only read the index; setup, indexing, and embedding preparation are explicit local operations.
+Your EndNote library is exported to XML, then indexed with PDF text in a separate local SQLite database. The Codex plugin connects to that index through a local stdio MCP server. Optional local embeddings add meaning-based search. The research tools only read the index; session-note previews write a separate local journal. Native note saving remains gated off. Setup, indexing, and embedding preparation are explicit local operations.
 
 ## Requirements
 
@@ -142,7 +142,7 @@ The research skill preserves reference IDs, attachment IDs, and physical PDF pag
 
 ## Available research tools
 
-The plugin exposes these 11 read-only MCP tools to Codex:
+The plugin exposes these 11 read-only research tools plus three session-note tools:
 
 | Tool | Purpose |
 | --- | --- |
@@ -157,6 +157,12 @@ The plugin exposes these 11 read-only MCP tools to Codex:
 | `find_related` | Find related references in the indexed library |
 | `read_pdf_section` | Read selected physical PDF pages, up to 30 per request |
 | `list_references_by_topic` | Browse matching references by topic |
+
+The session-note tools are `preview_session_note`, `commit_session_note`, and
+`undo_session_note`. Preview writes an **unsaved** draft to a separate local
+journal. The shipping adapter refuses live commits and undo until its safety gate
+passes; reviewed entries can be pasted manually into EndNote Research Notes.
+See [reviewed notes and native acceptance](docs/session-notes.md).
 
 Unlike the original Claude integration, this server does not expose a `rebuild_index` tool. Ask Codex to index your library or run the local CLI after re-exporting the XML.
 
@@ -245,7 +251,8 @@ If already installed, update its `SKILL.md` rather than creating a nested copy. 
 | `embed [--full]` | Explicitly prepare local semantic embeddings |
 | `status` | Read index and attachment counts |
 | `doctor` | Check readiness and print direct-registration instructions |
-| `serve-desktop` | Start the read-only stdio MCP server |
+| `serve-desktop` | Start the stdio MCP server without startup writes |
+| `note-show NOTE_ID [--recovery]` | Read a durable draft or its recovery preimages |
 
 Default configuration directories are listed in the platform comparison above;
 each contains `config.yaml` and `library.db`. Every command accepts `--config PATH`.
@@ -286,7 +293,7 @@ For direct registration, `chatgpt-endnote-mcp doctor` also prints the `codex mcp
 
 ## Privacy and scope
 
-The plugin reads your chosen XML/PDFs and writes a separate local index. It does not edit EndNote or synchronize with a live library. Retrieved metadata, abstracts, notes, and PDF passages may enter the active AI conversation through Codex's configured model connection. Use material you are authorized to share. This describes data flow and is not institutional approval.
+The plugin reads your chosen XML/PDFs and writes a separate local index. The shipping native adapter does not edit EndNote or synchronize with a live library. Session-note previews write local drafts and recovery data beside the selected configuration; optional macOS reads inspect an explicitly configured open library. Retrieved metadata, abstracts, notes, and PDF passages may enter the active AI conversation through Codex's configured model connection. Use material you are authorized to share. This describes data flow and is not institutional approval.
 
 No hosted service, inbound listener, tunnel, or separate OpenAI API key is needed. The older HTTP and Claude setup integrations were retired; see [the cleanup record](docs/cleanup-inventory.md). `examples/server.registry.template.json` is only a future registry example; no PyPI or MCP Registry publication is promised.
 

@@ -189,10 +189,20 @@ def doctor(config):
         raise click.ClickException("Fix the reported paths/index, then run doctor again.")
 
 
+@cli.command("note-show")
+@click.argument("note_id")
+@click.option("--config", type=click.Path(exists=True, path_type=Path))
+@click.option("--recovery", is_flag=True, help="Include faithful preimages and operation state for manual recovery.")
+def note_show(note_id, config, recovery):
+    """Read a durable session draft or its recovery data. Does not edit EndNote."""
+    from endnote_mcp.session_notes import NoteService
+    click.echo(json.dumps(NoteService(_config_path(config)).show_session_note(note_id, recovery), ensure_ascii=False, indent=2))
+
+
 @cli.command("serve-desktop")
 @click.option("--config", type=click.Path(exists=True, path_type=Path))
 def serve_desktop(config):
-    """Start the read-only MCP server over process input/output. No sockets."""
+    """Start the MCP server over process input/output. No sockets or startup writes."""
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
     os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"

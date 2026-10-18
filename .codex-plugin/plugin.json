@@ -1,7 +1,7 @@
 {
   "name": "endnote-research",
   "version": "1.4.7",
-  "description": "Index and search exported EndNote libraries locally from Codex desktop.",
+  "description": "Search exported EndNote libraries and draft reviewed paper-session notes locally.",
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",
   "author": {
@@ -19,13 +19,14 @@
   "interface": {
     "displayName": "EndNote Research",
     "shortDescription": "Search exported libraries",
-    "longDescription": "Unofficial tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, and optionally use locally prepared semantic embeddings. Requires uv, an exported library, and the platform package for macOS or Windows 11 x64. Source files and the index stay local; retrieved evidence may be sent to the AI service used by Codex. Local operation does not guarantee privacy or security. Provided as is, without warranty; use at your own risk. This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI.",
+    "longDescription": "Unofficial tool for indexing and searching local EndNote XML exports and PDF attachments. Search metadata and PDF evidence, format citations, draft reviewed Research Notes for manual paste, and optionally use locally prepared semantic embeddings. Drafts are journaled locally; native saving remains disabled pending safety validation. Requires uv, an exported library, and the platform package for macOS or Windows 11 x64. Source files and the index stay local; retrieved evidence may be sent to the AI service used by Codex. Local operation does not guarantee privacy or security. Provided as is, without warranty; use at your own risk. This plugin and its creator are not affiliated with, endorsed by, or sponsored by EndNote, Clarivate, or OpenAI.",
     "developerName": "bjreisman",
     "category": "Productivity",
     "capabilities": [
       "Local library search",
       "Citations",
-      "PDF evidence"
+      "PDF evidence",
+      "Reviewed session-note drafts"
     ],
     "websiteURL": "https://github.com/bjreisman/chatgpt-endnote-mcp",
     "supportURL": "https://github.com/bjreisman/chatgpt-endnote-mcp/issues",

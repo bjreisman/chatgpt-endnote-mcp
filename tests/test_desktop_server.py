@@ -13,6 +13,8 @@ TOOLS = {
     'get_citation', 'read_pdf_section', 'list_references_by_topic', 'find_related',
     'get_bibliography', 'search_semantic', 'get_bibtex',
 }
+NOTE_TOOLS = {'preview_session_note', 'commit_session_note', 'undo_session_note'}
+ALL_TOOLS = TOOLS | NOTE_TOOLS
 
 
 class FakeRuntime:
@@ -20,7 +22,7 @@ class FakeRuntime:
         self.calls = []
 
     def __getattr__(self, name):
-        if name not in TOOLS:
+        if name not in ALL_TOOLS:
             raise AttributeError(name)
         def call(**kwargs):
             self.calls.append((name, kwargs))
@@ -32,11 +34,11 @@ class FakeRuntime:
 def test_readonly_surface_and_search_schemas():
     server = build_desktop_mcp(FakeRuntime())
     tools = asyncio.run(server.list_tools())
-    assert {tool.name for tool in tools} == TOOLS
+    assert {tool.name for tool in tools} == ALL_TOOLS
     for tool in tools:
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is True
+        assert tool.annotations.readOnlyHint is (tool.name not in NOTE_TOOLS)
+        assert tool.annotations.destructiveHint is (tool.name in {'commit_session_note', 'undo_session_note'})
+        assert tool.annotations.idempotentHint is (tool.name != 'preview_session_note')
         assert tool.annotations.openWorldHint is False
         assert tool.outputSchema is not None
         if tool.name.startswith('search_'):
@@ -60,6 +62,9 @@ def test_readonly_surface_and_search_schemas():
     ('find_related', {'rec_number': 42, 'offset': 20}),
     ('get_bibliography', {'rec_numbers': '42,43'}),
     ('get_bibtex', {'rec_numbers': '42,43'}),
+    ('preview_session_note', {'rec_number': 42, 'entry': {'questions': ['What next?']}}),
+    ('commit_session_note', {'note_id': 'a-note'}),
+    ('undo_session_note', {'note_id': 'a-note'}),
 ])
 def test_tool_dispatch_and_structured_output(name, args):
     runtime = FakeRuntime()
@@ -72,7 +77,11 @@ def test_tool_dispatch_and_structured_output(name, args):
     else:
         assert result['tool'] == name
     assert runtime.calls[0][0] == name
-    assert all(runtime.calls[0][1][key] == value for key, value in args.items())
+    for key, value in args.items():
+        if key == 'entry':
+            assert all(runtime.calls[0][1][key][section] == items for section, items in value.items())
+        else:
+            assert runtime.calls[0][1][key] == value
 
 
 def test_actual_stdio_initialization_call_shutdown_and_restart(tmp_path):
@@ -94,7 +103,7 @@ build_desktop_mcp(Runtime()).run(transport="stdio")
                 initialized = await asyncio.wait_for(session.initialize(), timeout=30)
                 assert initialized.serverInfo.name == 'chatgpt-endnote-mcp'
                 tools = await session.list_tools()
-                assert {tool.name for tool in tools.tools} == TOOLS
+                assert {tool.name for tool in tools.tools} == ALL_TOOLS
                 result = await session.call_tool('get_reference_details', {'rec_number': 42})
                 assert not result.isError
                 assert result.structuredContent['items'] == [{'rec_number': 42}]
