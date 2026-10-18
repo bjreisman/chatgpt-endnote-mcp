@@ -31,16 +31,16 @@ def notes_env(tmp_path, sample_ref):
     conn.execute('PRAGMA journal_mode=DELETE')
     conn.close()
     xml = tmp_path / 'library.xml'
-    xml.write_text(live_xml(sample_ref, str(tmp_path / 'Test.enl')).replace('<rec-number>7</rec-number>', '<rec-number>42</rec-number>').replace('db-id="stable"', 'db-id="stable-db"'))
+    xml.write_text(live_xml(sample_ref, str(tmp_path / 'Test.enl')).replace('<rec-number>7</rec-number>', '<rec-number>42</rec-number>').replace('db-id="stable"', 'db-id="stable-db"'), encoding='utf-8')
     config = tmp_path / 'config.yaml'
-    config.write_text(yaml.safe_dump({'endnote_xml': str(xml), 'pdf_dir': str(tmp_path), 'db_path': str(database)}))
+    config.write_text(yaml.safe_dump({'endnote_xml': str(xml), 'pdf_dir': str(tmp_path), 'db_path': str(database)}), encoding='utf-8')
     return config, sample_ref
 
 
 def enable_native(config):
-    data = yaml.safe_load(config.read_text())
+    data = yaml.safe_load(config.read_text(encoding='utf-8'))
     data.update(native_notes_enabled=True, live_library=str(config.parent / 'Test.enl'))
-    config.write_text(yaml.safe_dump(data))
+    config.write_text(yaml.safe_dump(data), encoding='utf-8')
 
 
 class ConditionalAdapter:
@@ -387,18 +387,18 @@ def test_runtime_note_errors_are_structured_and_no_startup_journal(notes_env):
 @pytest.mark.parametrize('value', ['true', 1, None])
 def test_native_opt_in_must_be_boolean(notes_env, value):
     config, _ = notes_env
-    data = yaml.safe_load(config.read_text())
+    data = yaml.safe_load(config.read_text(encoding='utf-8'))
     data['native_notes_enabled'] = value
-    config.write_text(yaml.safe_dump(data))
+    config.write_text(yaml.safe_dump(data), encoding='utf-8')
     with pytest.raises(ValueError, match='boolean'):
         Config.load(config)
 
 
 def test_native_opt_in_requires_library(notes_env):
     config, _ = notes_env
-    data = yaml.safe_load(config.read_text())
+    data = yaml.safe_load(config.read_text(encoding='utf-8'))
     data['native_notes_enabled'] = True
-    config.write_text(yaml.safe_dump(data))
+    config.write_text(yaml.safe_dump(data), encoding='utf-8')
     with pytest.raises(ValueError, match='live_library'):
         Config.load(config)
 
@@ -416,16 +416,16 @@ def test_readonly_recovery_cli_and_configuration_scope(notes_env):
     for name, content in before.items():
         assert (config.parent / name).read_bytes() == content
     other = config.with_name('other.yaml')
-    other.write_text(config.read_text())
+    other.write_text(config.read_text(encoding='utf-8'), encoding='utf-8')
     with pytest.raises(ValueError, match='configuration'):
         NoteService(other).show_session_note(draft['note_id'])
 
 
 def test_journal_cannot_alias_index(notes_env):
     config, _ = notes_env
-    data = yaml.safe_load(config.read_text())
+    data = yaml.safe_load(config.read_text(encoding='utf-8'))
     data['db_path'] = str(config.parent / 'session-notes.sqlite3')
-    config.write_text(yaml.safe_dump(data))
+    config.write_text(yaml.safe_dump(data), encoding='utf-8')
     with pytest.raises(ValueError, match='separate'):
         NoteService(config)
 
@@ -440,7 +440,7 @@ def test_missing_note_show_never_creates_files(notes_env):
 
 def test_export_from_another_library_cannot_enable_native_save(notes_env):
     service, adapter = service_with_writer(notes_env)
-    service.cfg.endnote_xml.write_text(service.cfg.endnote_xml.read_text().replace('stable-db', 'another-db'))
+    service.cfg.endnote_xml.write_text(service.cfg.endnote_xml.read_text(encoding='utf-8').replace('stable-db', 'another-db'), encoding='utf-8')
     preview = service.preview_session_note(42, {'questions': ['Q']})
     assert not preview['native']['eligible'] and preview['native']['code'] == 'identity_conflict'
     with pytest.raises(NativeNoteError):
@@ -451,7 +451,7 @@ def test_export_from_another_library_cannot_enable_native_save(notes_env):
 def test_changed_source_export_blocks_commit(notes_env):
     service, adapter = service_with_writer(notes_env)
     preview = service.preview_session_note(42, {'questions': ['Q']})
-    service.cfg.endnote_xml.write_text('<xml><records/></xml>')
+    service.cfg.endnote_xml.write_text('<xml><records/></xml>', encoding='utf-8')
     with pytest.raises(NativeNoteError) as error:
         service.commit_session_note(preview['note_id'])
     assert error.value.code == 'export_identity_unavailable' and adapter.writes == 0
@@ -506,3 +506,50 @@ def test_real_stdio_note_preview_and_gate(notes_env):
                 assert result.structuredContent['error']['code'] == 'native_disabled'
     asyncio.run(run())
     assert Config.load(config).db_path.read_bytes() == index_before
+
+
+def test_manual_draft_survives_restart_and_cli_recovery(notes_env):
+    """Exercise the copyable draft through real transport and fresh processes."""
+    import asyncio
+    import sys
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    config, _ = notes_env
+    pdf = add_pdf(config)
+    cfg = Config.load(config)
+    protected = [config, cfg.db_path, cfg.endnote_xml, pdf]
+    before = {path: path.read_bytes() for path in protected}
+    entry = pdf_entry()
+    entry.update(interpretation=['My interpretation: Ω "quoted"\nsecond line'],
+                 questions=['What next?'], hypotheses=['A separate hypothesis'])
+
+    async def session_cycle(note_id=None):
+        params = StdioServerParameters(command=sys.executable,
+            args=['-m', 'endnote_mcp.desktop_cli', 'serve-desktop', '--config', str(config)])
+        async with stdio_client(params) as (reader, writer):
+            async with ClientSession(reader, writer) as session:
+                await session.initialize()
+                if note_id is None:
+                    result = await session.call_tool('preview_session_note', {'rec_number': 42, 'entry': entry})
+                    assert not result.isError
+                    return result.structuredContent
+                for tool in ('commit_session_note', 'undo_session_note'):
+                    result = await session.call_tool(tool, {'note_id': note_id})
+                    assert result.structuredContent['error']['code'] == 'native_disabled'
+
+    preview = asyncio.run(session_cycle())
+    assert preview['status'] == 'unsaved' and not preview['saved']
+    for heading in ('Published findings', 'Personal interpretation', 'Questions', 'Hypotheses'):
+        assert heading in preview['text']
+    assert 'attachment paper, physical PDF page(s) 1–2' in preview['text']
+    assert entry['interpretation'][0] in preview['text']
+    # Recovery must retain every character even through a non-Unicode pipe.
+    recovered = subprocess.run([sys.executable, '-m', 'endnote_mcp.desktop_cli',
+        'note-show', preview['note_id'], '--config', str(config)],
+        env={**os.environ, 'PYTHONIOENCODING': 'ascii'}, capture_output=True, timeout=30)
+    assert recovered.returncode == 0, recovered.stderr
+    draft = json.loads(recovered.stdout)
+    assert draft['rendered_text'] == preview['text'] and draft['status'] == 'draft'
+    asyncio.run(session_cycle(preview['note_id']))
+    assert all(path.read_bytes() == content for path, content in before.items())

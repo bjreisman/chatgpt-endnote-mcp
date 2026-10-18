@@ -5,6 +5,21 @@ are unavailable in the shipping adapter.** Issue #8 remains incomplete until
 native write acceptance passes. The existing eleven research tools remain
 read-only; three note tools explicitly advertise writes.
 
+## Review status — October 18, 2026
+
+This branch is a draft/manual-paste milestone for issue #8, not completion of
+native saving. Synthetic end-to-end checks exercise a PDF-cited preview through
+the real MCP transport, separate published findings from interpretation and
+questions, recover the exact Unicode/multiline text in a fresh CLI process, and
+retry save/undo after a server restart. Native operations remain refused and
+configuration, source XML/PDF, and index bytes remain unchanged. Windows fixture
+files use explicit UTF-8 so these checks do not depend on the machine's code page.
+
+The copyable text and recovery path are automated checks. Actual manual paste
+into a disposable EndNote library and fresh-profile Codex GUI onboarding remain
+human-visible acceptance work. Do not infer EndNote write safety from the
+simulated conditional-writer tests or mark issue #8 complete on this milestone.
+
 ## Review and paste
 
 Ask Codex to draft a session note for a selected reference. The preview includes
